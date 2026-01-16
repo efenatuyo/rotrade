@@ -1,0 +1,130 @@
+{
+  "manifest_version": 3,
+  "name": "RoTrade - Roblox Trading Automated",
+  "version": "1.2.7",
+  "description": "Smart Roblox trading made simple. Craft your perfect trade and let our algorithm find the best trading partners automatically.",
+  "icons": {
+    "16": "assets/icon.png",
+    "48": "assets/icon.png",
+    "128": "assets/icon.png"
+  },
+  "action": {
+    "default_popup": "ui/popup.html",
+    "default_icon": {
+      "16": "assets/icon.png",
+      "48": "assets/icon.png",
+      "128": "assets/icon.png"
+    },
+    "default_title": "RoTrade - Smart Trading"
+  },
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://www.roblox.com/*",
+    "*://api.rolimons.com/*",
+    "*://roautotrade.com/*",
+    "*://users.roblox.com/*",
+    "*://inventory.roblox.com/*",
+    "*://thumbnails.roblox.com/*",
+    "*://auth.roblox.com/*",
+    "*://trades.roblox.com/*"
+  ],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.roblox.com/*"],
+      "js": [
+        "core/storage.js",
+        "core/dom.js",
+        "core/api.js",
+               "core/utils/timing.js",
+               "core/utils/logger.js",
+               "core/utils/retry.js",
+               "core/utils/network.js",
+               "core/utils/validation.js",
+               "core/utils/cache.js",
+               "core/utils.js",
+        "core/bridge-utils.js",
+        "ui/thumbnails.js",
+        "ui/routing.js",
+        "trading/trades.js",
+        "ui/ui.js",
+        "ui/pagination.js",
+        "trading/inventory.js",
+        "trading/display/auto-trades.js",
+        "trading/display/trades.js",
+        "trading/display/opportunities.js",
+        "trading/display/actions.js",
+        "trading/trade-display.js",
+        "trading/trade-operations.js",
+        "trading/trade-summary.js",
+        "ui/user-stats.js",
+        "ui/pages/utils.js",
+        "ui/pages/auto-trades.js",
+        "ui/pages/create-trade.js",
+        "ui/pages/settings.js",
+        "ui/pages/send-trades.js",
+        "ui/pages/proofs.js",
+        "ui/pages.js",
+        "ui/listeners/auto-trades.js",
+        "ui/listeners/create-trade.js",
+        "ui/listeners/settings.js",
+        "ui/listeners/send-trades.js",
+        "ui/event-listeners.js",
+        "trading/loading/utils.js",
+        "trading/loading/thumbnails.js",
+        "trading/loading/auto-trades.js",
+        "trading/loading/outbound.js",
+        "trading/loading/finalized.js",
+        "trading/trade-loading.js",
+        "trading/opportunities/users.js",
+        "trading/opportunities/items.js",
+        "trading/opportunities/filtering.js",
+        "trading/opportunities/sorting.js",
+        "trading/opportunities/shuffle.js",
+        "trading/opportunities/loader.js",
+        "trading/opportunities.js",
+        "trading/trade-sending.js",
+        "trading/status/checker.js",
+        "trading/status/notifications.js",
+        "trading/status/trades.js",
+        "trading/status/monitoring.js",
+        "trading/status/fetcher.js",
+        "trading/status/roblox.js",
+        "trading/status/cleanup.js",
+        "trading/trade-status.js",
+        "ui/dialogs.js",
+        "proofs/proofs-link-config.js",
+        "proofs/proofs-link-validation.js",
+        "proofs/proofs-link-extractor.js",
+        "proofs/proofs-link-dom.js",
+        "proofs/proofs-link.js",
+        "content/pagination-wrappers.js",
+        "content/routing-wrappers.js",
+        "content/global-exports.js",
+        "content/item-selectors.js",
+        "content/filters.js",
+        "content/styles.js",
+        "content/margins.js",
+        "content/trade-history.js",
+        "content/trade-editor.js",
+        "content/robux-validation.js",
+        "content/migration.js",
+        "content/responsive.js",
+        "content/send-trades-listeners.js",
+        "content/init.js"
+      ],
+      "css": ["assets/styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/styles.css", "assets/bridge.js", "assets/notification.mp3"],
+      "matches": ["*://www.roblox.com/*"]
+    }
+  ]
+}

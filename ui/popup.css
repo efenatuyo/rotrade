@@ -1,0 +1,215 @@
+/* RoTrade Extension Popup - Black & Green Theme */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0a0a0a;
+    color: #ffffff;
+    width: 350px;
+    min-height: 400px;
+    overflow: hidden;
+}
+
+.popup-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+}
+
+/* Header Section */
+.header {
+    padding: 20px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    border-bottom: 2px solid #00ff88;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #1a1a1a;
+    padding: 4px;
+    border: 1px solid #333333;
+}
+
+.title-section {
+    flex: 1;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #00ff88;
+    margin-bottom: 2px;
+}
+
+.subtitle {
+    font-size: 13px;
+    color: #888888;
+    font-weight: 400;
+}
+
+/* Actions Section */
+.actions-section {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.main-action-btn, .secondary-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 16px 18px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+}
+
+.main-action-btn {
+    background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+    color: #000000;
+    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+}.main-action-btn:hover {
+    background: linear-gradient(135deg, #00ff88 0%, #00dd77 100%);
+    box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+    transform: translateY(-2px);
+}
+
+.secondary-action-btn {
+    background: linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 100%);
+    color: #ffffff;
+    border: 1px solid #00ff88;
+}
+
+.secondary-action-btn:hover {
+    background: linear-gradient(135deg, #3a3a3a 0%, #4a4a4a 100%);
+    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-icon {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.main-action-btn .btn-icon {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.btn-content {
+    flex: 1;
+}
+
+.btn-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.btn-subtitle {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* Credits Section */
+.credits-section {
+    padding: 20px;
+    flex: 1;
+}
+
+.credits-header {
+    margin-bottom: 15px;
+}
+
+.credits-header h3 {
+    font-size: 16px;
+    color: #00ff88;
+    font-weight: 600;
+}
+
+.credits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.credit-item {
+    background: rgba(0, 255, 136, 0.05);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: all 0.3s ease;
+}.credit-item:hover {
+    background: rgba(0, 255, 136, 0.1);
+    border-color: rgba(0, 255, 136, 0.4);
+    transform: translateY(-1px);
+}
+
+.credit-role {
+    font-size: 12px;
+    color: #aaaaaa;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.credit-name {
+    font-size: 16px;
+    color: #00ff88;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Footer */
+.footer {
+    padding: 15px 20px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.version {
+    font-size: 11px;
+    color: #666666;
+    font-weight: 500;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00ff88;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00cc66;
+}
