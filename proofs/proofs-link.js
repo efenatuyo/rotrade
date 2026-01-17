@@ -20,21 +20,20 @@
         if (!shouldProcessItemCard(itemCard)) return;
         if (!window.ProofsLinkExtractor || !window.ProofsLinkDOM || !window.ProofsLinkConfig) return;
 
-        const { SELECTORS } = window.ProofsLinkConfig;
         const { extractItemId } = window.ProofsLinkExtractor;
         const { createProofsLink } = window.ProofsLinkDOM;
 
         const itemId = extractItemId(itemCard);
         if (!itemId) return;
 
-        const itemCardPrice = itemCard.querySelector(SELECTORS.itemCardPrice);
-        if (!itemCardPrice || !itemCardPrice.parentNode) return;
+        const thumbContainer = itemCard.querySelector('.item-card-thumb-container');
+        if (!thumbContainer) return;
 
         const proofsLink = createProofsLink(itemId);
         if (!proofsLink) return;
 
         try {
-            itemCardPrice.parentNode.insertBefore(proofsLink, itemCardPrice.nextSibling);
+            thumbContainer.appendChild(proofsLink);
         } catch (error) {
             console.error('Error adding proofs link:', error);
         }

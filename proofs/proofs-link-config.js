@@ -3,7 +3,7 @@
 
     const CONFIG = {
         tooltipText: 'View past completed trades',
-        linkText: 'View Proofs',
+        linkText: 'Proof',
         baseUrl: 'https://www.roblox.com/proofs'
     };
 
