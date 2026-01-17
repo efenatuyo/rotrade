@@ -10,7 +10,8 @@
         const { SELECTORS } = window.ProofsLinkConfig;
         const itemCardPrice = itemCard.querySelector(SELECTORS.itemCardPrice);
         if (!itemCardPrice) return false;
-        if (itemCardPrice.querySelector(SELECTORS.proofsLink)) return false;
+        
+        if (itemCard.querySelector(SELECTORS.proofsLink)) return false;
 
         return true;
     }
@@ -27,14 +28,13 @@
         if (!itemId) return;
 
         const itemCardPrice = itemCard.querySelector(SELECTORS.itemCardPrice);
-        const robuxValue = itemCardPrice.querySelector(SELECTORS.robuxValue);
-        if (!robuxValue || !robuxValue.parentNode) return;
+        if (!itemCardPrice || !itemCardPrice.parentNode) return;
 
         const proofsLink = createProofsLink(itemId);
         if (!proofsLink) return;
 
         try {
-            robuxValue.parentNode.insertBefore(proofsLink, robuxValue.nextSibling);
+            itemCardPrice.parentNode.insertBefore(proofsLink, itemCardPrice.nextSibling);
         } catch (error) {
             console.error('Error adding proofs link:', error);
         }

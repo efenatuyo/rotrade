@@ -33,11 +33,11 @@
         proofsLinkContainer.setAttribute('data-toggle', 'tooltip');
         proofsLinkContainer.setAttribute('title', CONFIG.tooltipText);
         proofsLinkContainer.setAttribute('data-original-title', CONFIG.tooltipText);
-        proofsLinkContainer.style.cssText = 'display: inline-block; cursor: pointer; color: inherit; text-decoration: none; margin-left: 8px; font-size: 12px;';
+        proofsLinkContainer.style.cssText = 'display: inline-block; cursor: pointer; color: #888; text-decoration: none; margin-left: 6px; font-size: 10px; white-space: nowrap;';
         
         const proofsText = document.createElement('span');
         proofsText.textContent = CONFIG.linkText;
-        proofsText.style.cssText = 'font-size: 12px; color: inherit;';
+        proofsText.style.cssText = 'font-size: 10px; color: #888;';
 
         proofsLinkContainer.appendChild(proofsText);
         return proofsLinkContainer;
@@ -52,13 +52,15 @@
             .proofs-link-container {
                 display: inline-block;
                 cursor: pointer;
-                color: inherit;
+                color: #888;
                 text-decoration: none;
-                margin-left: 8px;
-                font-size: 12px;
+                margin-left: 6px;
+                font-size: 10px;
+                white-space: nowrap;
             }
 
             .proofs-link-container:hover {
+                color: #666;
                 text-decoration: underline;
             }
         `;
