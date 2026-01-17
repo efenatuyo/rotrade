@@ -2,8 +2,6 @@
 
 <div align="center">
 
-![RoTrade Logo](icon.png)
-
 **Smart Roblox trading made simple. Craft your perfect trade and let our algorithm find the best trading partners automatically.**
 
 [![Version](https://img.shields.io/badge/version-1.2.7-brightgreen)](manifest.json)
