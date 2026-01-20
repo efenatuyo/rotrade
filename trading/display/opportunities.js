@@ -22,6 +22,22 @@
                 return;
             }
 
+            const activeFilter = document.querySelector('.trade-filter-chip.active');
+            const isAllTrades = !activeFilter || activeFilter.dataset.tradeName === 'all';
+
+            if (!isAllTrades && activeFilter) {
+                const tradeId = activeFilter.dataset.tradeId;
+                const specificTrade = autoTrades.find(t => String(t.id) === String(tradeId));
+                if (specificTrade) {
+                    const maxTrades = specificTrade.settings?.maxTrades || 5;
+                    const tradesExecutedToday = Trades.getTodayTradeCount(specificTrade.id);
+                    if (tradesExecutedToday >= maxTrades) {
+                        grid.innerHTML = '<div class="empty-message">All trades have been sent. Wait for another day or change the daily amount.</div>';
+                        return;
+                    }
+                }
+            }
+
             const allTradesComplete = autoTrades.every(trade => {
                 const maxTrades = trade.settings?.maxTrades || 5;
                 const tradesExecutedToday = Trades.getTodayTradeCount(trade.id);
@@ -59,87 +75,76 @@
         }
 
         if (Object.keys(rolimonData).length > 0) {
-            tradesToShow = tradesToShow.map(opportunity => {
-                const enrichedGiving = opportunity.giving.map(item => {
-                    const itemName = (item.name || '').trim();
-                    if (!itemName) return item;
-                    
-                    const rolimonEntry = Object.entries(rolimonData).find(([id, data]) => {
-                        if (!Array.isArray(data) || data.length < 5) return false;
-                        const rolimonName = (data[0] || '').trim();
-                        return rolimonName.toLowerCase() === itemName.toLowerCase();
-                    });
-                    
-                    if (rolimonEntry) {
-                        const [itemId, rolimonItem] = rolimonEntry;
-                        return {
-                            ...item,
-                            id: parseInt(itemId) || item.id || item.itemId,
-                            itemId: parseInt(itemId) || item.id || item.itemId,
-                            rap: item.rap || rolimonItem[2],
-                            value: item.value || rolimonItem[4]
-                        };
+            const rolimonLookup = new Map();
+            for (const [itemId, itemData] of Object.entries(rolimonData)) {
+                if (Array.isArray(itemData) && itemData.length >= 5) {
+                    const rolimonName = (itemData[0] || '').trim().toLowerCase();
+                    if (rolimonName) {
+                        rolimonLookup.set(rolimonName, { itemId: parseInt(itemId) || 0, itemData });
                     }
-                    return item;
-                });
+                }
+            }
 
-                const enrichedReceiving = opportunity.receiving.map(item => {
-                    const itemName = (item.name || '').trim();
-                    if (!itemName) return item;
-                    
-                    const rolimonEntry = Object.entries(rolimonData).find(([id, data]) => {
-                        if (!Array.isArray(data) || data.length < 5) return false;
-                        const rolimonName = (data[0] || '').trim();
-                        return rolimonName.toLowerCase() === itemName.toLowerCase();
-                    });
-                    
-                    if (rolimonEntry) {
-                        const [itemId, rolimonItem] = rolimonEntry;
-                        return {
-                            ...item,
-                            id: parseInt(itemId) || item.id || item.itemId,
-                            itemId: parseInt(itemId) || item.id || item.itemId,
-                            rap: item.rap || rolimonItem[2],
-                            value: item.value || rolimonItem[4]
-                        };
-                    }
-                    return item;
-                });
+            const enrichItem = (item) => {
+                const itemName = (item.name || '').trim();
+                if (!itemName) return item;
+                
+                const lookup = rolimonLookup.get(itemName.toLowerCase());
+                if (lookup) {
+                    return {
+                        ...item,
+                        id: lookup.itemId || item.id || item.itemId,
+                        itemId: lookup.itemId || item.id || item.itemId,
+                        rap: item.rap || lookup.itemData[2],
+                        value: item.value || lookup.itemData[4]
+                    };
+                }
+                return item;
+            };
 
-                return {
-                    ...opportunity,
-                    giving: enrichedGiving,
-                    receiving: enrichedReceiving
-                };
-            });
+            tradesToShow = tradesToShow.map(opportunity => ({
+                ...opportunity,
+                giving: opportunity.giving.map(enrichItem),
+                receiving: opportunity.receiving.map(enrichItem)
+            }));
         }
 
         grid.innerHTML = tradesToShow.map(opportunity => {
-            const givingItems = opportunity.giving.map(item =>
-                `<div class="item-card-compact">
-                    <div class="item-icon" data-item-id="${item.id || item.itemId || ''}" data-id="${item.id || item.itemId || ''}" data-item-name="${item.name || ''}" title="${item.name || 'Unknown Item'}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${(item.name || 'UI').substring(0, 2).toUpperCase()}</div>
+            const givingItems = opportunity.giving.map(item => {
+                const itemId = String(item.id || item.itemId || '');
+                const itemName = item.name || 'Unknown Item';
+                const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
+                const itemNameDisplay = SecurityUtils.sanitizeHtml(item.name && item.name.length > 15 ? item.name.substring(0, 15) + '...' : itemName);
+                const itemNameTitle = SecurityUtils.sanitizeHtml(itemName);
+                return `<div class="item-card-compact">
+                    <div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemNameTitle}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>
                     <div class="item-info-compact">
-                        <div class="item-name-compact">${item.name && item.name.length > 15 ? item.name.substring(0, 15) + '...' : (item.name || 'Unknown Item')}</div>
+                        <div class="item-name-compact">${itemNameDisplay}</div>
                         <div class="item-values-compact">
                             <span class="rap-text">RAP: ${(item.rap || 0).toLocaleString()}</span>
                             <span class="value-text">VAL: ${(item.value || 0).toLocaleString()}</span>
                         </div>
                     </div>
-                </div>`
-            ).join('');
+                </div>`;
+            }).join('');
 
-            const receivingItems = opportunity.receiving.map(item =>
-                `<div class="item-card-compact">
-                    <div class="item-icon" data-item-id="${item.id || item.itemId || ''}" data-id="${item.id || item.itemId || ''}" data-item-name="${item.name || ''}" title="${item.name || 'Unknown Item'}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${(item.name || 'UI').substring(0, 2).toUpperCase()}</div>
+            const receivingItems = opportunity.receiving.map(item => {
+                const itemId = String(item.id || item.itemId || '');
+                const itemName = item.name || 'Unknown Item';
+                const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
+                const itemNameDisplay = SecurityUtils.sanitizeHtml(item.name && item.name.length > 15 ? item.name.substring(0, 15) + '...' : itemName);
+                const itemNameTitle = SecurityUtils.sanitizeHtml(itemName);
+                return `<div class="item-card-compact">
+                    <div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemNameTitle}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>
                     <div class="item-info-compact">
-                        <div class="item-name-compact">${item.name && item.name.length > 15 ? item.name.substring(0, 15) + '...' : (item.name || 'Unknown Item')}</div>
+                        <div class="item-name-compact">${itemNameDisplay}</div>
                         <div class="item-values-compact">
                             <span class="rap-text">RAP: ${(item.rap || 0).toLocaleString()}</span>
                             <span class="value-text">VAL: ${(item.value || 0).toLocaleString()}</span>
                         </div>
                     </div>
-                </div>`
-            ).join('');
+                </div>`;
+            }).join('');
 
             let robuxGetHtml = '';
             if (opportunity.robuxGet && opportunity.robuxGet > 0) {
@@ -206,13 +211,18 @@
                 <div class="send-trade-card trade-card">
                     <div class="send-trade-header">
                         <div class="trade-info-compact">
-                            <div class="trade-title-compact">${opportunity.name}</div>
-                            <div class="trade-target">→ ${opportunity.targetUser.username}</div>
+                            <div class="trade-title-compact">${SecurityUtils.sanitizeHtml(opportunity.name)}</div>
+                            <div class="trade-target">→ ${SecurityUtils.sanitizeHtml(opportunity.targetUser.username)}</div>
                             ${lastOnlineHtml}
                             ${daysOwnedHtml}
                         </div>
                         <div class="header-right-section">
-                            <img src="${opportunity.targetUser.avatarUrl}" alt="${opportunity.targetUser.username}" class="user-avatar-compact" style="opacity: 0.7;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg=='" />
+                            ${(() => {
+                                const avatarUrl = SecurityUtils.sanitizeUrl(opportunity.targetUser.avatarUrl);
+                                const username = SecurityUtils.sanitizeAttribute(opportunity.targetUser.username);
+                                const fallbackImg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg==';
+                                return avatarUrl ? `<img src="${SecurityUtils.sanitizeAttribute(avatarUrl)}" alt="${username}" class="user-avatar-compact" style="opacity: 0.7;" onerror="this.src='${fallbackImg}'" />` : `<img src="${fallbackImg}" alt="${username}" class="user-avatar-compact" style="opacity: 0.7;" />`;
+                            })()}
                         </div>
                     </div>
 
@@ -235,10 +245,10 @@
                     </div>
 
                     <div class="send-trade-actions">
-                        <button class="btn btn-success btn-sm send-trade-btn" data-user-id="${opportunity.targetUserId}" data-trade-id="${opportunity.id}">
+                        <button class="btn btn-success btn-sm send-trade-btn" data-user-id="${SecurityUtils.sanitizeAttribute(opportunity.targetUserId)}" data-trade-id="${SecurityUtils.sanitizeAttribute(opportunity.id)}">
                             SEND
                         </button>
-                        <a href="https://www.roblox.com/users/${opportunity.targetUserId}/profile" target="_blank" class="btn btn-secondary btn-sm">
+                        <a href="https://www.roblox.com/users/${SecurityUtils.sanitizeAttribute(opportunity.targetUserId)}/profile" target="_blank" class="btn btn-secondary btn-sm" rel="noopener noreferrer">
                             PROFILE
                         </a>
                     </div>
