@@ -51,7 +51,7 @@
             return `
                 <div class="auto-trade-card" data-status="${autoTrade.status}" data-id="${autoTrade.id}">
                     <div class="auto-trade-header">
-                        <div class="auto-trade-name">${autoTrade.name}</div>
+                        <div class="auto-trade-name">${SecurityUtils.sanitizeHtml(autoTrade.name)}</div>
                         <div class="auto-trade-status status-${autoTrade.status}">
                             ${statusIcon} ${statusText}
                         </div>
@@ -64,7 +64,9 @@
                                 ${autoTrade.giving.map(item => {
                                     const itemId = item.id || item.itemId || '';
                                     const itemIdStr = itemId ? String(itemId) : '';
-                                    return `<div class="item-icon" data-item-id="${itemIdStr}" data-id="${itemIdStr}" data-item-name="${item.name || ''}" title="${item.name || 'Unknown Item'}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${(item.name || 'UI').substring(0, 2).toUpperCase()}</div>`;
+                                    const itemName = SecurityUtils.sanitizeHtml(item.name || 'Unknown Item');
+                                    const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
+                                    return `<div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemName}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>`;
                                 }).join('')}
                             </div>
                         </div>
@@ -75,7 +77,9 @@
                                 ${autoTrade.receiving.map(item => {
                                     const itemId = item.id || item.itemId || '';
                                     const itemIdStr = itemId ? String(itemId) : '';
-                                    return `<div class="item-icon" data-item-id="${itemIdStr}" data-id="${itemIdStr}" data-item-name="${item.name || ''}" title="${item.name || 'Unknown Item'}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${(item.name || 'UI').substring(0, 2).toUpperCase()}</div>`;
+                                    const itemName = SecurityUtils.sanitizeHtml(item.name || 'Unknown Item');
+                                    const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
+                                    return `<div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemName}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>`;
                                 }).join('')}
                             </div>
                         </div>
