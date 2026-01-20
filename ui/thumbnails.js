@@ -82,14 +82,24 @@
 
         const promise = (async () => {
             try {
-                const response = await fetch(`https://thumbnails.roblox.com/v1/assets?assetIds=${itemIdStr}&size=150x150&format=Png&isCircular=false`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch(`https://thumbnails.roblox.com/v1/assets?assetIds=${itemIdStr}&size=150x150&format=Png&isCircular=false`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const data = await response.json();
                 
                 if (data && Array.isArray(data.data) && data.data[0]?.imageUrl) {
-                    setCached(itemIdStr, data.data[0].imageUrl);
+                    const imageUrl = SecurityUtils?.sanitizeUrl(data.data[0].imageUrl);
+                    if (imageUrl) {
+                        setCached(itemIdStr, imageUrl);
+                    }
                 }
                 pendingRequests.delete(itemIdStr);
                 return data;
