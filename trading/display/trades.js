@@ -148,9 +148,9 @@
                     <div class="trade-card" data-status="outbound">
                         <div class="trade-header">
                             <div class="trade-header-top">
-                                <div class="trade-user">${trade.user || `User ${trade.targetUserId}`}</div>
+                                <div class="trade-user">${SecurityUtils.sanitizeHtml(trade.user || `User ${trade.targetUserId}`)}</div>
                                 <div class="trade-status" style="color: ${statusColor}; border-color: ${statusColor}; background: ${statusBg};">
-                                    ${statusText}
+                                    ${SecurityUtils.sanitizeHtml(statusText)}
                                 </div>
                             </div>
                             <div class="trade-timestamp-header">${new Date(trade.timestamp || trade.created).toLocaleString()}</div>
@@ -163,7 +163,9 @@
                                     ${giving.map(item => {
                                         const itemId = item.id || item.itemId;
                                         const itemIdStr = itemId ? String(itemId) : '';
-                                        return `<div class="item-icon" data-item-id="${itemIdStr}" data-id="${itemIdStr}" data-item-name="${item.name || ''}" title="${item.name || 'Unknown Item'}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${(item.name || 'UI').substring(0, 2).toUpperCase()}</div>`;
+                                        const itemName = SecurityUtils.sanitizeHtml(item.name || 'Unknown Item');
+                                        const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
+                                        return `<div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemName}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>`;
                                     }).join('')}
                                     ${robuxGive > 0 ? `<div class="item-icon robux-icon" style="background: #00d26a; color: white; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center;" title="${robuxGive.toLocaleString()} Robux (${Math.floor(robuxGive * 0.7).toLocaleString()} after tax)">R${robuxGive >= 1000 ? (robuxGive / 1000).toFixed(1) + 'K' : robuxGive.toLocaleString()}</div>` : ''}
                                 </div>
@@ -175,7 +177,9 @@
                                     ${receiving.map(item => {
                                         const itemId = item.id || item.itemId;
                                         const itemIdStr = itemId ? String(itemId) : '';
-                                        return `<div class="item-icon" data-item-id="${itemIdStr}" data-id="${itemIdStr}" data-item-name="${item.name || ''}" title="${item.name || 'Unknown Item'}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${(item.name || 'UI').substring(0, 2).toUpperCase()}</div>`;
+                                        const itemName = SecurityUtils.sanitizeHtml(item.name || 'Unknown Item');
+                                        const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
+                                        return `<div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-id="${SecurityUtils.sanitizeAttribute(itemIdStr)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemName}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>`;
                                     }).join('')}
                                     ${robuxGet > 0 ? `<div class="item-icon robux-icon" style="background: #00d26a; color: white; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center;" title="${robuxGet.toLocaleString()} Robux (${Math.floor(robuxGet * 0.7).toLocaleString()} after tax)">R${robuxGet >= 1000 ? (robuxGet / 1000).toFixed(1) + 'K' : robuxGet.toLocaleString()}</div>` : ''}
                                 </div>
@@ -221,21 +225,21 @@
                 return `
                     <div class="trade-card" data-status="${trade.status || 'unknown'}">
                         <div class="trade-header">
-                            <div class="trade-user">User ID: ${trade.targetUserId || 'Unknown'}</div>
+                            <div class="trade-user">User ID: ${SecurityUtils.sanitizeHtml(trade.targetUserId || 'Unknown')}</div>
                             <div class="trade-status" style="color: ${statusColor}; border-color: ${statusColor}; background: rgba(${
                                 statusColor === '#28a745' ? '40, 167, 69' :
                                 statusColor === '#ffc107' ? '255, 193, 7' :
                                 statusColor === '#dc3545' ? '220, 53, 69' : '108, 117, 125'
                             }, 0.2);">
-                                ${trade.status || 'Unknown'}
+                                ${SecurityUtils.sanitizeHtml(trade.status || 'Unknown')}
                             </div>
                         </div>
                         <div class="trade-content">
                             <div class="trade-info">
-                                <div><strong>Trade:</strong> ${trade.tradeName || 'Extension Trade'}</div>
-                                <div><strong>ID:</strong> ${trade.id || 'Unknown'}</div>
-                                <div><strong>Created:</strong> ${trade.created || 'Unknown'}</div>
-                                <div><strong>Type:</strong> ${trade.type || 'Extension Trade'}</div>
+                                <div><strong>Trade:</strong> ${SecurityUtils.sanitizeHtml(trade.tradeName || 'Extension Trade')}</div>
+                                <div><strong>ID:</strong> ${SecurityUtils.sanitizeHtml(trade.id || 'Unknown')}</div>
+                                <div><strong>Created:</strong> ${SecurityUtils.sanitizeHtml(trade.created || 'Unknown')}</div>
+                                <div><strong>Type:</strong> ${SecurityUtils.sanitizeHtml(trade.type || 'Extension Trade')}</div>
                             </div>
                         </div>
                     </div>
