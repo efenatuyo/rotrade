@@ -31,6 +31,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return handleFetchCommonOwners(request, sendResponse);
     } else if (request.action === "fetchInstanceIds") {
         return handleFetchInstanceIds(request, sendResponse);
+    } else if (request.action === "fetchAutoInstanceIds") {
+        return handleFetchAutoInstanceIds(request, sendResponse);
     } else if (request.action === "fetchUserAuth") {
         return handleFetchUserAuth(request, sendResponse);
     } else if (request.action === "fetchUserInventory") {

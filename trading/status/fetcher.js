@@ -37,6 +37,25 @@
         return { data: [], nextPageCursor: null, previousPageCursor: null };
     }
 
+    function normalizeTradeId(id) {
+        if (id === null || id === undefined) return null;
+        const str = String(id).trim();
+        if (!str || str === 'null' || str === 'undefined') return null;
+        try {
+            const num = BigInt(str);
+            return { str, num: num.toString() };
+        } catch {
+            return { str, num: str };
+        }
+    }
+
+    function tradeIdsMatch(id1, id2) {
+        const norm1 = normalizeTradeId(id1);
+        const norm2 = normalizeTradeId(id2);
+        if (!norm1 || !norm2) return false;
+        return norm1.str === norm2.str || norm1.num === norm2.num;
+    }
+
     async function findPendingTradesInPaginatedList(pendingTradeIds, oldestPendingTime = 0) {
         const foundTradeIds = new Set();
         let cursor = null;
@@ -63,13 +82,18 @@
                     }
                 }
                 
-                const tradeIdFromApi = String(tradeData.id).trim();
+                const apiTradeNorm = normalizeTradeId(tradeData.id);
+                if (!apiTradeNorm) continue;
                 
                 for (const pendingId of pendingTradeIds) {
-                    const pendingIdStr = String(pendingId).trim();
-                    if (pendingIdStr === tradeIdFromApi) {
-                        foundTradeIds.add(tradeIdFromApi);
-                        foundTradeIds.add(pendingIdStr);
+                    if (tradeIdsMatch(pendingId, tradeData.id)) {
+                        foundTradeIds.add(apiTradeNorm.str);
+                        foundTradeIds.add(apiTradeNorm.num);
+                        const pendingNorm = normalizeTradeId(pendingId);
+                        if (pendingNorm) {
+                            foundTradeIds.add(pendingNorm.str);
+                            foundTradeIds.add(pendingNorm.num);
+                        }
                     }
                 }
             }
@@ -87,18 +111,17 @@
         const statusMap = new Map();
 
         for (const tradeId of tradeIds) {
-            const tradeIdStr = String(tradeId).trim();
+            const tradeNorm = normalizeTradeId(tradeId);
+            if (!tradeNorm) continue;
             
-            if (foundInPaginatedList.has(tradeIdStr)) {
-                continue;
-            }
+            let isInPaginatedList = foundInPaginatedList.has(tradeNorm.str) || foundInPaginatedList.has(tradeNorm.num);
             
-            let isInPaginatedList = false;
-            for (const foundId of foundInPaginatedList) {
-                const foundIdStr = String(foundId).trim();
-                if (foundIdStr === tradeIdStr) {
-                    isInPaginatedList = true;
-                    break;
+            if (!isInPaginatedList) {
+                for (const foundId of foundInPaginatedList) {
+                    if (tradeIdsMatch(tradeId, foundId)) {
+                        isInPaginatedList = true;
+                        break;
+                    }
                 }
             }
             
@@ -147,7 +170,9 @@
         getOldestPendingTradeTime,
         fetchOutboundTradesPage,
         findPendingTradesInPaginatedList,
-        fetchStatusForChangedTrades
+        fetchStatusForChangedTrades,
+        normalizeTradeId,
+        tradeIdsMatch
     };
 
     window.getOldestPendingTradeTime = getOldestPendingTradeTime;

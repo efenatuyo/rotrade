@@ -48,6 +48,9 @@
                     </div>
 
                     <div class="pagination-buttons">
+                        <button class="pagination-btn send-all-btn" id="send-all-trades-btn" style="background: #28a745; color: white; margin-right: 10px;">
+                            Send All Trades
+                        </button>
                         <button class="pagination-btn" id="pagination-prev" disabled>Previous</button>
                         <button class="pagination-btn" id="pagination-next">Next</button>
                     </div>
@@ -124,6 +127,7 @@
                 if (window.setupShuffleSystem) window.setupShuffleSystem();
                 if (window.setupSortingSystem) window.setupSortingSystem();
                 if (window.setupSendTradeButtons) window.setupSendTradeButtons();
+                if (window.setupSendAllTradesButton) window.setupSendAllTradesButton();
             }).catch(error => {
             });
         }

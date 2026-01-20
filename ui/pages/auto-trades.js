@@ -138,7 +138,13 @@
         });
 
         if (window.loadAutoTradeData) {
-            window.loadAutoTradeData().then(() => {
+            (async () => {
+                if (window.validateAutoTradesInventory) {
+                    await window.validateAutoTradesInventory();
+                }
+                
+                await window.loadAutoTradeData();
+                
                 if (window.loadOutboundTrades) window.loadOutboundTrades();
                 if (window.loadExpiredTrades) window.loadExpiredTrades();
                 if (window.loadCompletedTrades) window.loadCompletedTrades();
@@ -157,7 +163,7 @@
                         window.loadAutoTradeItemThumbnails('completed-container');
                     }
                 });
-            });
+            })();
         }
 
         Utils.delay(500).then(() => {

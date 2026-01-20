@@ -83,45 +83,51 @@
 
         if (!window.ownersRawData) window.ownersRawData = {};
 
+        const tradesToLoad = [];
         for (const trade of updatedAutoTrades) {
-            try {
-                let itemIds = [];
+            let itemIds = [];
+            
+            trade.receiving.forEach(item => {
+                let itemId = item.id || item.itemId;
                 
-                trade.receiving.forEach(item => {
-                    let itemId = item.id || item.itemId;
-                    
-                    if (!itemId && item.name && Object.keys(rolimonData).length > 0) {
-                        const itemName = (item.name || '').trim();
-                        const rolimonEntry = Object.entries(rolimonData).find(([id, data]) => {
-                            if (!Array.isArray(data) || data.length < 5) return false;
-                            const rolimonName = (data[0] || '').trim();
-                            return rolimonName.toLowerCase() === itemName.toLowerCase();
-                        });
+                if (!itemId && item.name && Object.keys(rolimonData).length > 0) {
+                    const itemName = (item.name || '').trim();
+                    const rolimonEntry = Object.entries(rolimonData).find(([id, data]) => {
+                        if (!Array.isArray(data) || data.length < 5) return false;
+                        const rolimonName = (data[0] || '').trim();
+                        return rolimonName.toLowerCase() === itemName.toLowerCase();
+                    });
 
-                        if (rolimonEntry) {
-                            itemId = parseInt(rolimonEntry[0]);
-                        }
+                    if (rolimonEntry) {
+                        itemId = parseInt(rolimonEntry[0]);
                     }
-                    
-                    if (itemId && !isNaN(itemId) && itemId > 0) {
-                        itemIds.push(itemId);
-                    }
-                });
-
-                if (itemIds.length === 0) {
-                    continue;
                 }
+                
+                if (itemId && !isNaN(itemId) && itemId > 0) {
+                    itemIds.push(itemId);
+                }
+            });
 
-                const settings = Trades.getSettings();
-                const ownersResponse = await chrome.runtime.sendMessage({
-                    action: 'fetchCommonOwners',
-                    itemIds: itemIds,
-                    maxOwnerDays: settings.maxOwnerDays,
-                    lastOnlineDays: settings.lastOnlineDays
-                });
+            if (itemIds.length > 0) {
+                tradesToLoad.push({ trade, itemIds });
+            }
+        }
 
-                if (ownersResponse.success && ownersResponse.data.owners) {
-                    const realOwners = ownersResponse.data.owners;
+ 
+        const settings = Trades.getSettings();
+        const ownerPromises = tradesToLoad.map(({ trade, itemIds }) => {
+            return chrome.runtime.sendMessage({
+                action: 'fetchCommonOwners',
+                itemIds: itemIds,
+                maxOwnerDays: settings.maxOwnerDays,
+                lastOnlineDays: settings.lastOnlineDays
+            }).then(response => ({ trade, itemIds, response }));
+        });
+
+        const processTradeResponse = async ({ trade, itemIds, response }) => {
+            try {
+                if (response.success && response.data && response.data.owners) {
+                    const realOwners = response.data.owners;
 
                     trade.totalOwners = realOwners.length;
 
@@ -175,9 +181,9 @@
 
                         const ownersToShow = freshOwners.slice(0, remainingTrades);
 
-                        ownersToShow.forEach((userId, index) => {
+                        const newOpportunities = ownersToShow.map((userId, index) => {
                             const tradeKey = `${trade.id}-${userId}`;
-                            opportunities.push({
+                            return {
                                 ...trade,
                                 targetUserId: userId,
                                 targetUser: {
@@ -190,13 +196,43 @@
                                 status: 'available',
                                 opportunityIndex: index + 1,
                                 itemIds: itemIds
-                            });
+                            };
                         });
+
+                        opportunities.push(...newOpportunities);
+
+                        if (!window._lastOpportunityUpdate || Date.now() - window._lastOpportunityUpdate > 500) {
+                            window._lastOpportunityUpdate = Date.now();
+                            
+                            if (window.location.pathname.includes('/trades') || window.location.pathname.includes('/auto-trades')) {
+                                function shuffleArray(array) {
+                                    const shuffled = [...array];
+                                    for (let i = shuffled.length - 1; i > 0; i--) {
+                                        const j = Math.floor(Math.random() * (i + 1));
+                                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                                    }
+                                    return shuffled;
+                                }
+
+                                const shuffled = shuffleArray(opportunities);
+                                window.currentOpportunities = shuffled;
+                                window.filteredOpportunities = [...shuffled];
+                                
+                                if (window.updateTradeFilterBar) window.updateTradeFilterBar();
+                                Pagination.setCurrentPage(1);
+                                Pagination.displayCurrentPage();
+                                if (window.updateTotalUsersInfo) window.updateTotalUsersInfo();
+                            }
+                        }
                     }
                 }
             } catch (error) {
             }
-        }
+        };
+
+        const results = await Promise.allSettled(ownerPromises.map(promise => 
+            promise.then(processTradeResponse).catch(() => {})
+        ));
 
         function shuffleArray(array) {
             const shuffled = [...array];

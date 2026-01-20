@@ -38,13 +38,18 @@
                     const container = document.getElementById('outbound-container');
                     if (container) container.innerHTML = '';
                     Storage.set('outbound-containerCurrentPage', '1');
-                    setTimeout(() => {
-                        if (window.loadOutboundTrades) {
-                            window.loadOutboundTrades();
-                        } else if (typeof TradeLoading !== 'undefined' && TradeLoading.loadOutboundTrades) {
-                            TradeLoading.loadOutboundTrades();
+                    (async () => {
+                        if (window.validateAutoTradesInventory) {
+                            await window.validateAutoTradesInventory();
                         }
-                    }, 100);
+                        setTimeout(() => {
+                            if (window.loadOutboundTrades) {
+                                window.loadOutboundTrades();
+                            } else if (typeof TradeLoading !== 'undefined' && TradeLoading.loadOutboundTrades) {
+                                TradeLoading.loadOutboundTrades();
+                            }
+                        }, 100);
+                    })();
                 } else if (filter === 'expired') {
                     document.getElementById('expired-section').style.display = 'block';
                     const container = document.getElementById('expired-container');

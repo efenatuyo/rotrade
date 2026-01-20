@@ -64,3 +64,31 @@ function handleFetchInstanceIds(request, sendResponse) {
 
     return true;
 }
+
+function handleFetchAutoInstanceIds(request, sendResponse) {
+    fetch("https://roautotrade.com/api/auto-instance-ids", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(request.payload)
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Background: API Error response:', text);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${text}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            sendResponse({ success: true, data: data });
+        })
+        .catch(error => {
+            console.error('Background: Error fetching auto instance IDs:', error);
+            sendResponse({ success: false, error: error.message });
+        });
+
+    return true;
+}

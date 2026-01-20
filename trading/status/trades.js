@@ -77,10 +77,22 @@
     }
 
     function notifyAndRefreshUI(movedTrades) {
+        const notifiedSet = new Set();
+        
         movedTrades.forEach(trade => {
-            const shouldNotify = ['completed', 'accepted', 'countered', 'declined'].includes(trade.status);
+            const tradeId = String(trade.id || '').trim();
+            const status = trade.status || '';
+            const notificationKey = `${tradeId}-${status}`;
+            
+            if (notifiedSet.has(notificationKey)) {
+                return;
+            }
+            
+            notifiedSet.add(notificationKey);
+            
+            const shouldNotify = ['completed', 'accepted', 'countered', 'declined'].includes(status);
             if (shouldNotify && window.showTradeNotification) {
-                window.showTradeNotification(trade, trade.status);
+                window.showTradeNotification(trade, status);
             }
         });
 

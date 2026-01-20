@@ -28,15 +28,31 @@
         return { message: config.message(userName, tradeName), type: config.type };
     }
 
+    function normalizeTradeIdForNotification(tradeId) {
+        if (tradeId === null || tradeId === undefined) return null;
+        return String(tradeId).trim();
+    }
+
     function hasBeenNotified(tradeId, status) {
+        const normalizedId = normalizeTradeIdForNotification(tradeId);
+        if (!normalizedId) return false;
+        
         const notifiedTrades = Storage.get('notifiedTrades', []);
-        return notifiedTrades.includes(`${tradeId}-${status}`);
+        const notificationKey = `${normalizedId}-${status}`;
+        return notifiedTrades.includes(notificationKey);
     }
 
     function markAsNotified(tradeId, status) {
+        const normalizedId = normalizeTradeIdForNotification(tradeId);
+        if (!normalizedId) return;
+        
         const notifiedTrades = Storage.get('notifiedTrades', []);
-        notifiedTrades.push(`${tradeId}-${status}`);
-        Storage.set('notifiedTrades', notifiedTrades);
+        const notificationKey = `${normalizedId}-${status}`;
+        
+        if (!notifiedTrades.includes(notificationKey)) {
+            notifiedTrades.push(notificationKey);
+            Storage.set('notifiedTrades', notifiedTrades);
+        }
     }
 
     function createNotificationElement(message, type, customHTML = null) {
@@ -104,9 +120,12 @@
     }
 
     function showTradeNotification(trade, status) {
-        if (hasBeenNotified(trade.id, status)) return;
+        const tradeId = normalizeTradeIdForNotification(trade.id);
+        if (!tradeId || hasBeenNotified(tradeId, status)) {
+            return;
+        }
 
-        markAsNotified(trade.id, status);
+        markAsNotified(tradeId, status);
 
         const { message, type } = getNotificationConfig(trade, status);
 
@@ -135,7 +154,7 @@
                     }
                 }, 300);
             }
-        }, 4000);
+        }, 6000);
     }
 
     window.TradeStatusNotifications = {
