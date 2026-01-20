@@ -4,7 +4,7 @@
 
 **Smart Roblox trading made simple. Craft your perfect trade and let our algorithm find the best trading partners automatically.**
 
-[![Version](https://img.shields.io/badge/version-1.2.7-brightgreen)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.2.8-brightgreen)](manifest.json)
 [![Manifest](https://img.shields.io/badge/manifest-v3-blue)](manifest.json)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](LICENSE)
 
@@ -221,7 +221,7 @@ RoTrade features a modern, dark-themed interface that integrates seamlessly with
 <tr>
 <td align="center">
 <strong>Frontend Developer</strong><br>
-<code>y8o, xolo</code><br>
+<code>xolo</code><br>
 <em>Extension Development</em>
 </td>
 <td align="center">
@@ -255,6 +255,6 @@ This project is licensed under the Creative Commons Attribution-NonCommercial 4.
 
 **Made with ❤️ for the Roblox trading community**
 
-*RoTrade v1.2.7 - Smart Roblox Trading Made Simple*
+*RoTrade v1.2.8 - Smart Roblox Trading Made Simple*
 
 </div>
