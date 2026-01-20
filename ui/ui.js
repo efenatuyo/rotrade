@@ -23,7 +23,12 @@
 
         const wrapper = document.createElement('div');
         wrapper.className = 'auto-trades-injected';
-        wrapper.innerHTML = newContent;
+
+        if (typeof newContent === 'string' && !newContent.includes('<')) {
+            wrapper.textContent = newContent;
+        } else {
+            wrapper.innerHTML = newContent;
+        }
 
         if (contentContainer) {
             contentContainer.appendChild(wrapper);
