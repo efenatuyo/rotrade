@@ -2,28 +2,33 @@
     'use strict';
 
     async function getItemIdsFromTrade(items, rolimonData) {
-        let itemIds = [];
+        const itemIds = [];
         
-        items.forEach(item => {
+        let rolimonLookup = null;
+        if (Object.keys(rolimonData).length > 0) {
+            rolimonLookup = new Map();
+            for (const [itemId, itemData] of Object.entries(rolimonData)) {
+                if (Array.isArray(itemData) && itemData.length >= 5) {
+                    const rolimonName = (itemData[0] || '').trim().toLowerCase();
+                    if (rolimonName) {
+                        rolimonLookup.set(rolimonName, parseInt(itemId) || 0);
+                    }
+                }
+            }
+        }
+        
+        for (const item of items) {
             let itemId = item.id || item.itemId;
             
-            if (!itemId && item.name && Object.keys(rolimonData).length > 0) {
-                const itemName = (item.name || '').trim();
-                const rolimonEntry = Object.entries(rolimonData).find(([id, data]) => {
-                    if (!Array.isArray(data) || data.length < 5) return false;
-                    const rolimonName = (data[0] || '').trim();
-                    return rolimonName.toLowerCase() === itemName.toLowerCase();
-                });
-
-                if (rolimonEntry) {
-                    itemId = parseInt(rolimonEntry[0]);
-                }
+            if (!itemId && item.name && rolimonLookup) {
+                const itemName = (item.name || '').trim().toLowerCase();
+                itemId = rolimonLookup.get(itemName) || null;
             }
             
             if (itemId && !isNaN(itemId) && itemId > 0) {
                 itemIds.push(itemId);
             }
-        });
+        }
 
         return itemIds.sort((a, b) => a - b);
     }
