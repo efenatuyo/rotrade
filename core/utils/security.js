@@ -1,11 +1,6 @@
 (function() {
     'use strict';
 
-    /**
-     * Sanitizes text to prevent XSS attacks when inserting into innerHTML
-     * @param {string} text - The text to sanitize
-     * @returns {string} - HTML-escaped text
-     */
     function sanitizeHtml(text) {
         if (text === null || text === undefined) {
             return '';
@@ -15,11 +10,6 @@
         return div.innerHTML;
     }
 
-    /**
-     * Sanitizes an attribute value to prevent XSS
-     * @param {string} value - The attribute value to sanitize
-     * @returns {string} - Escaped attribute value
-     */
     function sanitizeAttribute(value) {
         if (value === null || value === undefined) {
             return '';
@@ -32,12 +22,6 @@
             .replace(/>/g, '&gt;');
     }
 
-    /**
-     * Validates and sanitizes a URL for use in href or src attributes
-     * @param {string} url - The URL to validate
-     * @param {string} allowedProtocols - Comma-separated list of allowed protocols (default: 'https:,http:,data:')
-     * @returns {string|null} - Sanitized URL or null if invalid
-     */
     function sanitizeUrl(url, allowedProtocols = 'https:,http:,data:') {
         if (!url || typeof url !== 'string') {
             return null;
@@ -62,12 +46,6 @@
         }
     }
 
-    /**
-     * Sanitizes an object's string properties recursively
-     * @param {object} obj - The object to sanitize
-     * @param {string[]} keysToSanitize - Array of keys to sanitize (if empty, sanitizes all string values)
-     * @returns {object} - New object with sanitized values
-     */
     function sanitizeObject(obj, keysToSanitize = []) {
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
             return obj;

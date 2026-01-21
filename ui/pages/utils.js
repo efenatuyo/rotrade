@@ -1,16 +1,10 @@
 (function() {
     'use strict';
 
-    function sanitizeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    window.PagesUtils = {};
+
+    if (!window.sanitizeHtml && window.SecurityUtils) {
+        window.sanitizeHtml = window.SecurityUtils.sanitizeHtml;
     }
-
-    window.PagesUtils = {
-        sanitizeHtml
-    };
-
-    window.sanitizeHtml = sanitizeHtml;
 
 })();

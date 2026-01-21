@@ -10,8 +10,13 @@
         }
 
         return new Promise((resolve) => {
-            chrome.runtime.sendMessage({ action: "fetchRolimons" }, (response) => {
-                if (response?.success && response.data?.items) {
+            try {
+                chrome.runtime.sendMessage({ action: "fetchRolimons" }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve(Utils.ensureArray(rolimonsCache.data, []));
+                        return;
+                    }
+                    if (response?.success && response.data?.items) {
                     const limiteds = [];
                     const items = response.data.items;
                     
@@ -49,38 +54,92 @@
                         fallback: rolimonsCache.data ? 'using_cache' : 'empty'
                     });
                     resolve(Utils.ensureArray(rolimonsCache.data, []));
-                }
-            });
+                    }
+                });
+            } catch (error) {
+                resolve(Utils.ensureArray(rolimonsCache.data, []));
+            }
         });
     }
 
-    async function getCurrentUserId() {
-        try {
-            if (window.location.href.includes('/users/')) {
-                const match = window.location.href.match(/\/users\/(\d+)/);
-                if (match) return parseInt(match[1]);
-            }
+    let cachedUserId = null;
+    let cachedUserIdTimestamp = 0;
+    const CACHE_DURATION = 60000;
 
-            return new Promise((resolve) => {
-                chrome.runtime.sendMessage({ action: "fetchUserAuth" }, (response) => {
-                    if (response?.success && response.data.id) {
-                        resolve(response.data.id);
-                    } else {
-                        const elements = document.querySelectorAll('[data-userid]');
-                        for (const el of elements) {
-                            const id = el.getAttribute('data-userid');
-                            if (id && id !== '0') {
-                                resolve(parseInt(id));
-                                return;
-                            }
+    function clearUserIdCache() {
+        cachedUserId = null;
+        cachedUserIdTimestamp = 0;
+    }
+
+    function getCurrentUserIdSync() {
+        try {
+            const metaTag = document.querySelector('meta[name="user-data"]');
+            if (metaTag) {
+                const userId = metaTag.getAttribute('data-userid');
+                if (userId && userId !== '0') {
+                    const parsedId = parseInt(userId, 10);
+                    if (!isNaN(parsedId) && parsedId > 0) {
+                        if (cachedUserId !== parsedId) {
+                            cachedUserId = parsedId;
+                            cachedUserIdTimestamp = Date.now();
                         }
+                        return parsedId;
+                    }
+                }
+            }
+        } catch (error) {
+        }
+
+        const now = Date.now();
+        if (cachedUserId && (now - cachedUserIdTimestamp < CACHE_DURATION)) {
+            return cachedUserId;
+        }
+
+        if (window.location.href.includes('/users/')) {
+            const match = window.location.href.match(/\/users\/(\d+)/);
+            if (match) {
+                const parsedId = parseInt(match[1], 10);
+                if (!isNaN(parsedId) && parsedId > 0) {
+                    cachedUserId = parsedId;
+                    cachedUserIdTimestamp = now;
+                    return parsedId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    async function getCurrentUserId() {
+        const syncResult = getCurrentUserIdSync();
+        if (syncResult) {
+            return syncResult;
+        }
+
+        return new Promise((resolve) => {
+            try {
+                chrome.runtime.sendMessage({ action: "fetchUserAuth" }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve(null);
+                        return;
+                    }
+                    if (response?.success && response.data?.id) {
+                        const userId = parseInt(response.data.id, 10);
+                        if (!isNaN(userId) && userId > 0) {
+                            cachedUserId = userId;
+                            cachedUserIdTimestamp = Date.now();
+                            resolve(userId);
+                        } else {
+                            resolve(null);
+                        }
+                    } else {
                         resolve(null);
                     }
                 });
-            });
-        } catch {
-            return null;
-        }
+            } catch (error) {
+                resolve(null);
+            }
+        });
     }
 
     async function getUserCollectibles(userId) {
@@ -88,7 +147,17 @@
             const rolimonData = {};
             try {
                 const response = await new Promise((resolve) => {
-                    chrome.runtime.sendMessage({ action: 'fetchRolimons' }, resolve);
+                    try {
+                        chrome.runtime.sendMessage({ action: 'fetchRolimons' }, (response) => {
+                            if (chrome.runtime.lastError) {
+                                resolve({ success: false });
+                            } else {
+                                resolve(response);
+                            }
+                        });
+                    } catch (error) {
+                        resolve({ success: false });
+                    }
                 });
                 if (response?.success) {
                     Object.assign(rolimonData, response.data.items || {});
@@ -102,11 +171,21 @@
 
             do {
                 const response = await new Promise((resolve) => {
-                    chrome.runtime.sendMessage({
-                        action: "fetchUserInventory",
-                        userId: userId,
-                        cursor: cursor
-                    }, resolve);
+                    try {
+                        chrome.runtime.sendMessage({
+                            action: "fetchUserInventory",
+                            userId: userId,
+                            cursor: cursor
+                        }, (response) => {
+                            if (chrome.runtime.lastError) {
+                                resolve({ success: false, error: chrome.runtime.lastError.message });
+                            } else {
+                                resolve(response);
+                            }
+                        });
+                    } catch (error) {
+                        resolve({ success: false, error: error.message });
+                    }
                 });
 
                 if (!response?.success) {
@@ -151,25 +230,41 @@
 
     async function fetchCommonOwners(itemIds, maxOwnerDays, lastOnlineDays) {
         return new Promise((resolve) => {
-            chrome.runtime.sendMessage({
-                action: 'fetchCommonOwners',
-                itemIds: itemIds,
-                maxOwnerDays: maxOwnerDays,
-                lastOnlineDays: lastOnlineDays
-            }, (response) => {
-                resolve(response?.success ? (response.data.owners || []) : []);
-            });
+            try {
+                chrome.runtime.sendMessage({
+                    action: 'fetchCommonOwners',
+                    itemIds: itemIds,
+                    maxOwnerDays: maxOwnerDays,
+                    lastOnlineDays: lastOnlineDays
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve([]);
+                    } else {
+                        resolve(response?.success ? (response.data.owners || []) : []);
+                    }
+                });
+            } catch (error) {
+                resolve([]);
+            }
         });
     }
 
     async function fetchPlayerAssets(userIds) {
         return new Promise((resolve) => {
-            chrome.runtime.sendMessage({
-                action: "fetchPlayerAssets",
-                userIds: userIds
-            }, (response) => {
-                resolve(response?.success ? response.data : null);
-            });
+            try {
+                chrome.runtime.sendMessage({
+                    action: "fetchPlayerAssets",
+                    userIds: userIds
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve(null);
+                    } else {
+                        resolve(response?.success ? response.data : null);
+                    }
+                });
+            } catch (error) {
+                resolve(null);
+            }
         });
     }
 
@@ -197,6 +292,8 @@
     window.API = {
         fetchRolimons,
         getCurrentUserId,
+        getCurrentUserIdSync,
+        clearUserIdCache,
         getUserCollectibles,
         fetchCommonOwners,
         fetchPlayerAssets,

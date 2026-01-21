@@ -1,6 +1,7 @@
 (function() {
     'use strict';
 
+    const SecurityUtils = window.SecurityUtils || { sanitizeHtml: (s) => String(s || ''), sanitizeAttribute: (s) => String(s || ''), sanitizeUrl: (u) => u };
     let progressDialog = null;
 
     function renderAllItemsThumbnails(items, container) {
@@ -31,7 +32,10 @@
             }
             
             const cachedUrl = window.thumbnailCache?.[itemId] || null;
+            const itemName = item.name || 'Unknown Item';
+            const initials = itemName.substring(0, 2).toUpperCase();
             
+            const safeInitials = SecurityUtils.sanitizeHtml(initials);
             return `
                 <div class="item-icon" data-item-id="${itemId}" data-id="${itemId}" style="
                     width: 36px;
@@ -42,8 +46,14 @@
                     background: #2a2d30;
                     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
                     flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 11px;
+                    font-weight: bold;
+                    color: #ffffff;
                 ">
-                    ${cachedUrl ? `<img src="${cachedUrl}" style="width: 100%; height: 100%; object-fit: cover; display: block;">` : ''}
+                    ${cachedUrl ? `<img src="${cachedUrl}" style="width: 100%; height: 100%; object-fit: cover; display: block;" onerror="(function(img){if(img&&img.parentElement){img.style.display='none';img.parentElement.textContent='${safeInitials}';}})(this);">` : safeInitials}
                 </div>
             `;
         }).filter(html => html).join('');
@@ -126,6 +136,9 @@
                 }
                 
                 const cachedUrl = window.thumbnailCache?.[itemId] || null;
+                const itemName = item.name || 'Unknown Item';
+                const initials = itemName.substring(0, 2).toUpperCase();
+                const safeInitials = SecurityUtils.sanitizeHtml(initials);
                 
                 return `
                     <div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-id="${SecurityUtils.sanitizeAttribute(itemId)}" style="
@@ -137,8 +150,14 @@
                         background: #2a2d30;
                         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
                         flex-shrink: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 11px;
+                        font-weight: bold;
+                        color: #ffffff;
                     ">
-                        ${cachedUrl ? `<img src="${SecurityUtils.sanitizeAttribute(SecurityUtils.sanitizeUrl(cachedUrl) || '')}" style="width: 100%; height: 100%; object-fit: cover; display: block;">` : ''}
+                        ${cachedUrl ? `<img src="${SecurityUtils.sanitizeAttribute(SecurityUtils.sanitizeUrl(cachedUrl) || '')}" style="width: 100%; height: 100%; object-fit: cover; display: block;" onerror="(function(img){if(img&&img.parentElement){img.style.display='none';img.parentElement.textContent='${safeInitials}';}})(this);">` : safeInitials}
                     </div>
                 `;
             }).filter(html => html).join('');
@@ -259,7 +278,13 @@
                 </div>
                 
                 <div style="margin-top: 16px; text-align: center; font-size: 12px; color: var(--auto-trades-text-secondary, #bdbebe);">
-                    <span id="failed-count-text">Failed due to owner settings: 0</span>
+                    <span id="failed-count-text">Failed: 0</span>
+                </div>
+                
+                <div style="margin-top: 20px; font-family: 'Courier New', monospace; font-size: 14px; text-align: center;">
+                    <div id="status-log" style="line-height: 1.6; min-height: 24px;">
+                        <div class="status-line" style="color: #17a2b8;">[0/3] Initializing...</div>
+                    </div>
                 </div>
                 
                 <div style="margin-top: 24px; display: flex; justify-content: center;">
@@ -292,7 +317,49 @@
         return overlay;
     }
 
-    function updateProgressDialog(successful, total, allOpportunities, failedCount = 0, isAllTrades = false) {
+    let statusTimeout = null;
+
+    function addStatusLog(step, totalSteps, message, type = 'info') {
+        if (!progressDialog) return;
+        const statusLog = progressDialog.querySelector('#status-log');
+        if (!statusLog) return;
+
+        const colors = {
+            info: '#17a2b8',
+            warning: '#ffc107',
+            error: '#dc3545',
+            success: '#28a745',
+            pending: '#6f42c1'
+        };
+
+        let logEntry = statusLog.querySelector('.status-line');
+        if (!logEntry) {
+            logEntry = document.createElement('div');
+            logEntry.className = 'status-line';
+            logEntry.style.marginBottom = '0';
+            logEntry.style.textAlign = 'center';
+            statusLog.appendChild(logEntry);
+        }
+
+        if (statusTimeout) {
+            clearTimeout(statusTimeout);
+            statusTimeout = null;
+        }
+
+        logEntry.style.color = colors[type] || colors.info;
+        logEntry.textContent = `[${step}/${totalSteps}] ${message}`;
+
+        if (type === 'success' || type === 'error' || type === 'warning') {
+            statusTimeout = setTimeout(() => {
+                if (logEntry && statusLog.contains(logEntry)) {
+                    logEntry.style.color = colors.info;
+                    logEntry.textContent = `[${step}/${totalSteps}] Ready for next trade...`;
+                }
+            }, 2000);
+        }
+    }
+
+    function updateProgressDialog(successful, total, allOpportunities, failedCount = 0, isAllTrades = false, statusMessage = null) {
         if (!progressDialog) return;
 
         const progressBar = progressDialog.querySelector('#progress-bar');
@@ -311,7 +378,11 @@
         }
 
         if (failedCountText) {
-            failedCountText.textContent = `Failed due to owner settings: ${failedCount}`;
+            failedCountText.textContent = `Failed: ${failedCount}`;
+        }
+
+        if (statusMessage) {
+            addStatusLog(statusMessage.message, statusMessage.type || 'info');
         }
 
         if (allOpportunities && allOpportunities.length > 0) {
@@ -377,6 +448,7 @@
     window.SendAllProgressDialog = {
         create: createProgressDialog,
         update: updateProgressDialog,
+        addStatusLog: addStatusLog,
         close: closeProgressDialog,
         get: getProgressDialog
     };

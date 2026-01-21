@@ -97,5 +97,75 @@
         }
     }
 
-    window.Storage = { get, set, setBatch, remove, clear, flush: flushWrites, clearCache };
+    let currentAccountId = null;
+    const ACCOUNT_SPECIFIC_KEYS = ['autoTrades', 'pendingExtensionTrades', 'sentTrades', 'sentTradeHistory', 'finalizedExtensionTrades', 'notifiedTrades'];
+
+    function getAccountKey(key, accountId) {
+        if (!accountId) return key;
+        return `${key}_${accountId}`;
+    }
+
+    async function getAccountAsync(key, defaultValue = null) {
+        if (!ACCOUNT_SPECIFIC_KEYS.includes(key)) {
+            return get(key, defaultValue);
+        }
+        if (!currentAccountId && window.API) {
+            try {
+                const userId = window.API.getCurrentUserIdSync ? window.API.getCurrentUserIdSync() : (await window.API.getCurrentUserId());
+                if (userId) {
+                    currentAccountId = userId;
+                }
+            } catch {}
+        }
+        const accountKey = getAccountKey(key, currentAccountId);
+        return get(accountKey, defaultValue);
+    }
+
+    function getAccount(key, defaultValue = null) {
+        if (!ACCOUNT_SPECIFIC_KEYS.includes(key)) {
+            return get(key, defaultValue);
+        }
+        if (!currentAccountId) {
+            return defaultValue;
+        }
+        const accountKey = getAccountKey(key, currentAccountId);
+        return get(accountKey, defaultValue);
+    }
+
+    function setAccount(key, value) {
+        if (!ACCOUNT_SPECIFIC_KEYS.includes(key)) {
+            set(key, value);
+            return;
+        }
+        const accountKey = getAccountKey(key, currentAccountId);
+        set(accountKey, value);
+    }
+
+    function setCurrentAccountId(accountId) {
+        currentAccountId = accountId;
+    }
+
+    function clearAccountCache() {
+        cache.clear();
+    }
+
+    function getCurrentAccountId() {
+        return currentAccountId;
+    }
+
+    window.Storage = { 
+        get, 
+        set, 
+        setBatch, 
+        remove, 
+        clear, 
+        flush: flushWrites, 
+        clearCache,
+        getAccount,
+        getAccountAsync,
+        setAccount,
+        setCurrentAccountId,
+        getCurrentAccountId,
+        clearAccountCache
+    };
 })();

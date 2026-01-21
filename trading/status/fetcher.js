@@ -107,7 +107,7 @@
         return foundTradeIds;
     }
 
-    async function fetchStatusForChangedTrades(tradeIds, foundInPaginatedList = new Set()) {
+    async function fetchStatusForChangedTrades(tradeIds, foundInPaginatedList = new Set(), pendingTradesMap = new Map(), onStatusFound = null) {
         const statusMap = new Map();
 
         for (const tradeId of tradeIds) {
@@ -130,7 +130,7 @@
             }
             
             try {
-                const result = await Utils.safeFetch(`https://trades.roblox.com/v1/trades/${tradeIdStr}`, {
+                const result = await Utils.safeFetch(`https://trades.roblox.com/v1/trades/${tradeNorm.str}`, {
                     method: 'GET',
                     timeout: 8000,
                     retries: 1
@@ -141,15 +141,26 @@
                     let status = tradeData.status;
                     const isActive = tradeData.isActive;
                     
+                    let normalizedStatus = null;
                     if (typeof status === 'string' && status && status.trim()) {
-                        const normalizedStatus = status.trim().toLowerCase();
+                        normalizedStatus = status.trim().toLowerCase();
                         if (normalizedStatus === 'open' && isActive === false) {
-                            statusMap.set(tradeIdStr, 'declined');
-                        } else if (normalizedStatus === 'completed' || normalizedStatus === 'declined' || normalizedStatus === 'countered' || normalizedStatus === 'open') {
-                            statusMap.set(tradeIdStr, normalizedStatus);
+                            normalizedStatus = 'declined';
+                        } else if (!['completed', 'declined', 'countered', 'open'].includes(normalizedStatus)) {
+                            normalizedStatus = null;
                         }
                     } else if (isActive === false) {
-                        statusMap.set(tradeIdStr, 'declined');
+                        normalizedStatus = 'declined';
+                    }
+                    
+                    if (normalizedStatus && normalizedStatus !== 'open') {
+                        statusMap.set(tradeNorm.str, normalizedStatus);
+                        statusMap.set(tradeNorm.num, normalizedStatus);
+                        
+                        if (onStatusFound && pendingTradesMap.has(tradeNorm.str)) {
+                            const trade = pendingTradesMap.get(tradeNorm.str);
+                            onStatusFound(trade, normalizedStatus);
+                        }
                     }
                 } else if (result.error) {
                     if (result.error.message && result.error.message.includes('429')) {

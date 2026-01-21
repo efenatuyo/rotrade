@@ -5,8 +5,12 @@
         return API.fetchRolimons();
     }
 
-    async function getCurrentUserId() {
-        return API.getCurrentUserId();
+    function getCurrentUserId() {
+        return API.getCurrentUserIdSync ? API.getCurrentUserIdSync() : null;
+    }
+
+    async function getCurrentUserIdAsync() {
+        return API.getCurrentUserId ? await API.getCurrentUserId() : null;
     }
 
     async function getUserCollectibles(userId) {
@@ -15,7 +19,7 @@
 
     async function loadInventoryData() {
         try {
-            const userId = await getCurrentUserId();
+            const userId = getCurrentUserId() || await getCurrentUserIdAsync();
             if (!userId) {
                 const limiteds = await loadRolimonsData();
                 displayInventory(limiteds.slice(0, 50));
@@ -262,6 +266,7 @@
         filterCatalog,
         loadRolimonsData,
         getCurrentUserId,
+        getCurrentUserIdAsync,
         getUserCollectibles
     };
 })();

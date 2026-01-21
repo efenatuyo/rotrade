@@ -1,6 +1,10 @@
 (function() {
     'use strict';
 
+    const OpportunityFetcher = window.OpportunityFetcher || {};
+    const ProgressTracker = window.ProgressTracker || class {};
+    const StateManager = window.StateManager;
+
     let isSendingAllTrades = false;
     let shouldStopSending = false;
     let globalAbortController = null;
@@ -10,140 +14,7 @@
     }
 
     async function fetchNewOpportunitiesForTrade(tradeId, neededCount) {
-        if (shouldStopCheck()) return [];
-        
-        const autoTrades = Storage.get('autoTrades', []);
-        const trade = autoTrades.find(t => String(t.id) === String(tradeId));
-        if (!trade) return [];
-
-        const rolimonData = window.rolimonData || {};
-        if (Object.keys(rolimonData).length === 0) {
-            try {
-                const response = await chrome.runtime.sendMessage({ action: 'fetchRolimons' });
-                if (response?.success) {
-                    Object.assign(rolimonData, response.data.items || {});
-                    window.rolimonData = rolimonData;
-                }
-            } catch (error) {
-                return [];
-            }
-        }
-
-        const itemIds = [];
-        let rolimonLookup = null;
-        if (Object.keys(rolimonData).length > 0) {
-            rolimonLookup = new Map();
-            for (const [itemId, itemData] of Object.entries(rolimonData)) {
-                if (Array.isArray(itemData) && itemData.length >= 5) {
-                    const rolimonName = (itemData[0] || '').trim().toLowerCase();
-                    if (rolimonName) {
-                        rolimonLookup.set(rolimonName, parseInt(itemId) || 0);
-                    }
-                }
-            }
-        }
-
-        for (const item of trade.receiving || []) {
-            let itemId = item.id || item.itemId;
-            if (!itemId && item.name && rolimonLookup) {
-                const itemName = (item.name || '').trim().toLowerCase();
-                itemId = rolimonLookup.get(itemName) || null;
-            }
-            if (itemId && !isNaN(itemId) && itemId > 0) {
-                itemIds.push(itemId);
-            }
-        }
-
-        if (itemIds.length === 0) return [];
-
-        const settings = Trades.getSettings();
-        let response;
-        try {
-            response = await chrome.runtime.sendMessage({
-                action: 'fetchCommonOwners',
-                itemIds: itemIds,
-                maxOwnerDays: settings.maxOwnerDays,
-                lastOnlineDays: settings.lastOnlineDays
-            });
-        } catch (error) {
-            return [];
-        }
-
-        if (!response?.success || !response?.data?.owners) {
-            return [];
-        }
-
-        const realOwners = response.data.owners;
-        let userIds = [];
-        
-        if (realOwners.length > 0 && Array.isArray(realOwners[0]) && realOwners[0].length >= 3) {
-            if (!window.ownersRawData) window.ownersRawData = {};
-            window.ownersRawData[trade.id] = realOwners.map(o => ({
-                userId: o[0],
-                ownedSince: o[1],
-                lastOnline: o[2]
-            }));
-            userIds = realOwners.map(o => o[0]);
-        } else {
-            userIds = realOwners;
-        }
-
-        if (!window.tradeRealOwners) window.tradeRealOwners = {};
-        window.tradeRealOwners[trade.id] = userIds;
-
-        const yourIds = window.getItemIdsFromTrade ? await window.getItemIdsFromTrade(trade.giving, rolimonData) : [];
-        const theirIds = window.getItemIdsFromTrade ? await window.getItemIdsFromTrade(trade.receiving, rolimonData) : [];
-        const yourR = trade.robuxGive || 0;
-        const theirR = trade.robuxGet || 0;
-
-        const oldSentTrades = new Set(Storage.get('sentTrades', []));
-        const history = Trades.getSentTradeHistory();
-        const now = Date.now();
-        const expiryMs = settings.tradeMemoryDays * 24 * 60 * 60 * 1000;
-        const validHistory = history.filter(entry => (now - entry.timestamp) < expiryMs);
-
-        const freshOwners = [];
-        for (const userId of userIds) {
-            if (shouldStopCheck()) break;
-            
-            const tradeKey = `${trade.id}-${userId}`;
-            const isOldDuplicate = oldSentTrades.has(tradeKey);
-            const isHashDuplicate = await Trades.isTradeComboSentRecently(userId, yourIds, theirIds, yourR, theirR);
-            
-            if (!isOldDuplicate && !isHashDuplicate) {
-                freshOwners.push(userId);
-            }
-        }
-
-        const shuffledFreshOwners = [...freshOwners].sort(() => Math.random() - 0.5);
-        const ownersToUse = shuffledFreshOwners.slice(0, neededCount);
-        
-        let newOpportunities = ownersToUse.map((userId, index) => {
-            const tradeKey = `${trade.id}-${userId}`;
-            return {
-                ...trade,
-                targetUserId: userId,
-                targetUser: {
-                    id: userId,
-                    username: `Loading...`,
-                    displayName: `User${userId}`,
-                    avatarUrl: ``
-                },
-                tradeKey: tradeKey,
-                status: 'available',
-                opportunityIndex: index + 1,
-                itemIds: itemIds
-            };
-        });
-
-        if (newOpportunities.length > 0 && window.fetchRealUsernames) {
-            try {
-                newOpportunities = await window.fetchRealUsernames(newOpportunities);
-            } catch (error) {
-            }
-        }
-
-        return newOpportunities;
+        return OpportunityFetcher.fetchNewOpportunitiesForTrade?.(tradeId, neededCount, shouldStopCheck) || [];
     }
 
     async function sendAllTrades() {
@@ -197,7 +68,6 @@
 
         let successCount = 0;
         let failedCount = 0;
-        let failedDueToOwnerSettings = 0;
         let stopWasPressed = false;
         
         const progressDialog = window.SendAllProgressDialog.create(() => {
@@ -222,8 +92,13 @@
         
         setTimeout(() => {
             window.SendAllProgressDialog.update(0, opportunitiesToSend.length, opportunitiesToSend, 0, isAllTrades);
+            if (window.SendAllProgressDialog && window.SendAllProgressDialog.addStatusLog) {
+                window.SendAllProgressDialog.addStatusLog(0, 3, `Starting to send ${opportunitiesToSend.length} trade${opportunitiesToSend.length !== 1 ? 's' : ''}...`, 'info');
+            }
         }, 100);
 
+        const progressTracker = new ProgressTracker();
+        
         try {
             if (opportunitiesToSend.length === 0) {
                 window.SendAllProgressDialog.close();
@@ -232,22 +107,8 @@
                 }
                 return;
             }
-
-            const tradeConfigGoals = new Map();
-            const tradeConfigSuccessCounts = new Map();
             
-            opportunitiesToSend.forEach(opp => {
-                const tradeId = String(opp.id || '');
-                if (!tradeConfigGoals.has(tradeId)) {
-                    const autoTrades = Storage.get('autoTrades', []);
-                    const storedTrade = autoTrades.find(t => String(t.id) === tradeId);
-                    const maxTrades = storedTrade?.settings?.maxTrades || storedTrade?.settings?.maxTradesPerDay || 5;
-                    const currentCount = Trades.getTodayTradeCount(tradeId);
-                    const goal = maxTrades - currentCount;
-                    tradeConfigGoals.set(tradeId, Math.max(0, goal));
-                    tradeConfigSuccessCounts.set(tradeId, 0);
-                }
-            });
+            progressTracker.initializeGoals(opportunitiesToSend);
 
             let currentIndex = 0;
             let attemptsWithoutProgress = 0;
@@ -258,49 +119,32 @@
                     break;
                 }
 
-                let opportunity = null;
-                let foundAvailable = false;
-
-                for (let i = currentIndex; i < opportunitiesToSend.length; i++) {
-                    const opp = opportunitiesToSend[i];
-                    const tradeId = String(opp.id || '');
-                    const goal = tradeConfigGoals.get(tradeId) || 0;
-                    const successCount = tradeConfigSuccessCounts.get(tradeId) || 0;
-
-                    if (goal > 0 && successCount < goal) {
-                        opportunity = opp;
-                        currentIndex = i + 1;
-                        foundAvailable = true;
-                        break;
-                    }
+                const availableResult = progressTracker.hasAvailableOpportunity(opportunitiesToSend, currentIndex);
+                let opportunity = availableResult?.opportunity || null;
+                if (availableResult) {
+                    currentIndex = availableResult.index + 1;
                 }
 
                 if (!opportunity) {
-                    const allGoalsReached = Array.from(tradeConfigGoals.entries()).every(([tradeId, goal]) => {
-                        const successCount = tradeConfigSuccessCounts.get(tradeId) || 0;
-                        return goal <= 0 || successCount >= goal;
-                    });
-
-                    if (allGoalsReached) {
+                    if (progressTracker.allGoalsReached()) {
                         break;
                     }
 
                     let fetchedNewOpportunities = false;
-                    const tradesNeedingMore = Array.from(tradeConfigGoals.entries()).filter(([tradeId, goal]) => {
-                        const successCount = tradeConfigSuccessCounts.get(tradeId) || 0;
-                        return goal > 0 && successCount < goal;
-                    });
+                    const tradesNeedingMore = progressTracker.getTradesNeedingMore();
 
                     if (tradesNeedingMore.length > 0 && attemptsWithoutProgress < 3) {
                         const progressText = progressDialog?.querySelector('#progress-text');
                         if (progressText) {
-                            progressText.textContent = `Fetching new opportunities... (${Array.from(tradeConfigSuccessCounts.values()).reduce((sum, count) => sum + count, 0)} / ${Array.from(tradeConfigGoals.values()).reduce((sum, goal) => sum + goal, 0)} trades sent)`;
+                            const totalSuccess = progressTracker.getTotalSuccess();
+                            const totalGoal = progressTracker.getTotalGoal();
+                            progressText.textContent = `Fetching new opportunities... (${totalSuccess} / ${totalGoal} trades sent)`;
                         }
 
                         for (const [tradeId, goal] of tradesNeedingMore) {
                             if (shouldStopCheck()) break;
                             
-                            const successCount = tradeConfigSuccessCounts.get(tradeId) || 0;
+                            const successCount = progressTracker.getSuccessCount(tradeId);
                             const needed = goal - successCount;
                             
                             if (needed > 0) {
@@ -315,15 +159,10 @@
                         if (fetchedNewOpportunities) {
                             attemptsWithoutProgress = 0;
                             currentIndex = 0;
-                            const totalSuccess = Array.from(tradeConfigSuccessCounts.values()).reduce((sum, count) => sum + count, 0);
-                            const totalGoal = Array.from(tradeConfigGoals.values()).reduce((sum, goal) => sum + goal, 0);
-                            const opportunitiesToShow = isAllTrades ? opportunitiesToSend : opportunitiesToSend.filter(opp => {
-                                const oppTradeId = String(opp.id || '');
-                                const goal = tradeConfigGoals.get(oppTradeId) || 0;
-                                const successCount = tradeConfigSuccessCounts.get(oppTradeId) || 0;
-                                return goal > 0 && successCount < goal;
-                            });
-                            window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedDueToOwnerSettings, isAllTrades);
+                            const totalSuccess = progressTracker.getTotalSuccess();
+                            const totalGoal = progressTracker.getTotalGoal();
+                            const opportunitiesToShow = progressTracker.getFilteredOpportunities(opportunitiesToSend, isAllTrades);
+                            window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
                             continue;
                         }
                     }
@@ -340,9 +179,9 @@
                 attemptsWithoutProgress = 0;
                 const tradeId = String(opportunity.id || '');
                 const opportunitiesToShow = isAllTrades ? opportunitiesToSend : [opportunity];
-                const totalGoal = Array.from(tradeConfigGoals.values()).reduce((sum, goal) => sum + goal, 0);
-                const totalSuccess = Array.from(tradeConfigSuccessCounts.values()).reduce((sum, count) => sum + count, 0);
-                window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedDueToOwnerSettings, isAllTrades);
+                const totalGoal = progressTracker.getTotalGoal();
+                const totalSuccess = progressTracker.getTotalSuccess();
+                window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
 
                 const abortController = new AbortController();
                 if (currentAbortController === globalAbortController && globalAbortController) {
@@ -354,14 +193,22 @@
                 let challengeDetected = false;
                 let tradeResult = null;
 
+                const onStatusUpdate = (step, totalSteps, message, type) => {
+                    if (window.SendAllProgressDialog && window.SendAllProgressDialog.addStatusLog) {
+                        window.SendAllProgressDialog.addStatusLog(step, totalSteps, message, type);
+                    }
+                };
+
                 try {
-                    tradeResult = await window.SendAllTradeSender.sendSingleTrade(opportunity, abortController.signal, shouldStopCheck);
+                    tradeResult = await window.SendAllTradeSender.sendSingleTrade(opportunity, abortController.signal, shouldStopCheck, onStatusUpdate);
                 } catch (error) {
                     if (window.SendAllChallengeHandler && window.SendAllChallengeHandler.isChallengeError(error)) {
                         challengeDetected = true;
                         tradeResult = { success: false, reason: 'challenge_required', error };
+                        onStatusUpdate(3, 3, `2FA challenge detected`, 'warning');
                     } else {
                         tradeResult = { success: false, reason: 'error', error };
+                        onStatusUpdate(3, 3, `Error: ${error?.message || 'Unknown error'}`, 'error');
                     }
                 }
 
@@ -384,9 +231,10 @@
                     await new Promise(resolve => setTimeout(resolve, 500));
 
                     try {
-                        tradeResult = await window.SendAllTradeSender.sendSingleTrade(opportunity, abortController.signal, shouldStopCheck);
+                        tradeResult = await window.SendAllTradeSender.sendSingleTrade(opportunity, abortController.signal, shouldStopCheck, onStatusUpdate);
                     } catch (error) {
                         tradeResult = { success: false, reason: 'error', error };
+                        onStatusUpdate(3, 3, `Error: ${error?.message || 'Unknown error'}`, 'error');
                     }
                 }
 
@@ -395,19 +243,21 @@
                 }
 
                 if (tradeResult && tradeResult.success) {
-                    const currentSuccess = tradeConfigSuccessCounts.get(tradeId) || 0;
-                    tradeConfigSuccessCounts.set(tradeId, currentSuccess + 1);
+                    progressTracker.recordSuccess(tradeId);
                     successCount++;
-                    const totalSuccess = Array.from(tradeConfigSuccessCounts.values()).reduce((sum, count) => sum + count, 0);
+                    const totalSuccess = progressTracker.getTotalSuccess();
+                    const totalGoal = progressTracker.getTotalGoal();
                     const opportunitiesToShow = isAllTrades ? opportunitiesToSend : (currentIndex < opportunitiesToSend.length ? [opportunitiesToSend[currentIndex]] : []);
-                    window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedDueToOwnerSettings, isAllTrades);
+                    window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
+                    
+                    if (progressTracker.allGoalsReached()) {
+                        break;
+                    }
                 } else {
                     failedCount++;
-                    if (tradeResult && tradeResult.reason === 'cannot_trade') {
-                        failedDueToOwnerSettings++;
-                    }
-                    const totalSuccess = Array.from(tradeConfigSuccessCounts.values()).reduce((sum, count) => sum + count, 0);
-                    window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedDueToOwnerSettings, isAllTrades);
+                    const totalSuccess = progressTracker.getTotalSuccess();
+                    const totalGoal = progressTracker.getTotalGoal();
+                    window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
                 }
 
                 if (shouldStopCheck()) {
@@ -424,10 +274,10 @@
                 isSendingAllTrades = false;
 
                 if (!stopWasPressed) {
-                    const totalSuccess = Array.from(tradeConfigSuccessCounts.values()).reduce((sum, count) => sum + count, 0);
-                    const totalGoal = Array.from(tradeConfigGoals.values()).reduce((sum, goal) => sum + goal, 0);
+                    const totalSuccess = progressTracker.getTotalSuccess() || successCount;
+                    const totalGoal = progressTracker.getTotalGoal() || opportunitiesToSend.length;
                     const opportunitiesToShow = isAllTrades ? opportunitiesToSend : (opportunitiesToSend.length > 0 ? [opportunitiesToSend[opportunitiesToSend.length - 1]] : []);
-                    window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedDueToOwnerSettings, isAllTrades);
+                    window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
 
                     setTimeout(() => {
                         window.SendAllProgressDialog.close();

@@ -2,11 +2,20 @@
     'use strict';
 
     async function loadTradeOpportunities() {
-        const autoTrades = Storage.get('autoTrades', []);
+        if (!Storage.getCurrentAccountId || !Storage.getCurrentAccountId()) {
+            if (window.API && window.API.getCurrentUserId) {
+                const userId = window.API.getCurrentUserIdSync ? window.API.getCurrentUserIdSync() : (await window.API.getCurrentUserId());
+                if (userId) {
+                    Storage.setCurrentAccountId(userId);
+                }
+            }
+        }
+        
+        const autoTrades = Storage.getAccount('autoTrades', []);
 
         if (!window.tradeUserPools) {
             window.tradeUserPools = {};
-            window.sentTrades = new Set(Storage.get('sentTrades', []));
+            window.sentTrades = new Set(Storage.getAccount('sentTrades', []));
         }
 
         let rolimonData = {};
@@ -150,11 +159,11 @@
 
                     window.tradeRealOwners[trade.id] = userIds;
 
-                    const autoTrades = Storage.get('autoTrades', []);
+                    const autoTrades = Storage.getAccount('autoTrades', []);
                     const storedTrade = autoTrades.find(at => at.id === trade.id);
                     if (storedTrade) {
                         storedTrade.totalOwners = userIds.length;
-                        Storage.set('autoTrades', autoTrades);
+                        Storage.setAccount('autoTrades', autoTrades);
                     }
 
                     const maxTrades = trade.settings?.maxTrades || trade.settings?.maxTradesPerDay || 5;

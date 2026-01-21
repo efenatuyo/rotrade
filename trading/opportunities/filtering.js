@@ -45,7 +45,7 @@
         const currentActiveChip = document.querySelector('.trade-filter-chip.active');
         const currentActiveTab = currentActiveChip ? currentActiveChip.dataset.tradeName : 'all';
 
-        const autoTrades = Storage.get('autoTrades', []);
+        const autoTrades = Storage.getAccount('autoTrades', []);
 
         const allCount = window.currentOpportunities ? window.currentOpportunities.length : 0;
         const allActive = currentActiveTab === 'all' ? 'active' : '';

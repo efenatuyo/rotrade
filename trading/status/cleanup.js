@@ -2,8 +2,8 @@
     'use strict';
 
     function cleanupTradeCategories() {
-        const pendingTrades = Storage.get('pendingExtensionTrades', []);
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
 
         let moveCount = 0;
 
@@ -18,8 +18,8 @@
             });
 
             const remainingPending = pendingTrades.filter(trade => !toMove.includes(trade));
-            Storage.set('pendingExtensionTrades', remainingPending);
-            Storage.set('finalizedExtensionTrades', finalizedTrades);
+            Storage.setAccount('pendingExtensionTrades', remainingPending);
+            Storage.setAccount('finalizedExtensionTrades', finalizedTrades);
             moveCount = toMove.length;
         }
 
@@ -27,9 +27,9 @@
     }
 
     function cleanupOldNotifications() {
-        const notifiedTrades = Storage.get('notifiedTrades', []);
+        const notifiedTrades = Storage.getAccount('notifiedTrades', []);
         if (notifiedTrades.length > 1000) {
-            Storage.set('notifiedTrades', notifiedTrades.slice(-500));
+            Storage.setAccount('notifiedTrades', notifiedTrades.slice(-500));
         }
     }
 
@@ -41,7 +41,6 @@
     window.cleanupTradeCategories = cleanupTradeCategories;
     window.cleanupOldNotifications = cleanupOldNotifications;
 
-    // Cleanup old notifications periodically
     const notificationCleanupInterval = setInterval(cleanupOldNotifications, 24 * 60 * 60 * 1000);
     if (window.tradeStatusIntervals) {
         window.tradeStatusIntervals.add(notificationCleanupInterval);

@@ -54,7 +54,7 @@
     async function loadExpiredTrades() {
         Storage.clearCache('finalizedExtensionTrades');
         Storage.flush();
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
 
         let rolimonData = {};
         try {
@@ -97,7 +97,7 @@
     async function loadCounteredTrades() {
         Storage.clearCache('finalizedExtensionTrades');
         Storage.flush();
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
 
         let rolimonData = {};
         try {
@@ -139,7 +139,7 @@
     async function loadCompletedTrades() {
         Storage.clearCache('finalizedExtensionTrades');
         Storage.flush();
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
 
         let rolimonData = {};
         try {

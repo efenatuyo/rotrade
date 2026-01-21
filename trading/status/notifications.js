@@ -1,6 +1,8 @@
 (function() {
     'use strict';
 
+    const Storage = window.ModuleRegistry?.getSafe('Storage') || window.Storage;
+
     function playNotificationSound() {
         try {
             if (!chrome || !chrome.runtime || !chrome.runtime.getURL) {
@@ -37,7 +39,7 @@
         const normalizedId = normalizeTradeIdForNotification(tradeId);
         if (!normalizedId) return false;
         
-        const notifiedTrades = Storage.get('notifiedTrades', []);
+        const notifiedTrades = Storage.getAccount('notifiedTrades', []);
         const notificationKey = `${normalizedId}-${status}`;
         return notifiedTrades.includes(notificationKey);
     }
@@ -46,12 +48,12 @@
         const normalizedId = normalizeTradeIdForNotification(tradeId);
         if (!normalizedId) return;
         
-        const notifiedTrades = Storage.get('notifiedTrades', []);
+        const notifiedTrades = Storage.getAccount('notifiedTrades', []);
         const notificationKey = `${normalizedId}-${status}`;
         
         if (!notifiedTrades.includes(notificationKey)) {
             notifiedTrades.push(notificationKey);
-            Storage.set('notifiedTrades', notifiedTrades);
+            Storage.setAccount('notifiedTrades', notifiedTrades);
         }
     }
 
@@ -119,6 +121,22 @@
         `;
     }
 
+    function dismissNotification(notification) {
+        if (!notification || !notification.parentNode) {
+            return;
+        }
+        
+        notification.style.animation = 'slideUpNotification 0.3s ease';
+        notification.style.cursor = 'default';
+        notification.style.pointerEvents = 'none';
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
+    }
+
     function showTradeNotification(trade, status) {
         const tradeId = normalizeTradeIdForNotification(trade.id);
         if (!tradeId || hasBeenNotified(tradeId, status)) {
@@ -132,6 +150,20 @@
         playNotificationSound();
         
         const notification = createNotificationElement(message, type);
+        notification.style.cursor = 'pointer';
+        notification.title = 'Click to dismiss';
+        
+        let autoDismissTimeout = setTimeout(() => {
+            dismissNotification(notification);
+        }, 6000);
+        
+        notification.addEventListener('click', () => {
+            if (autoDismissTimeout) {
+                clearTimeout(autoDismissTimeout);
+                autoDismissTimeout = null;
+            }
+            dismissNotification(notification);
+        });
         
         if (document.body) {
             document.body.appendChild(notification);
@@ -144,17 +176,6 @@
             });
             observer.observe(document.documentElement, { childList: true, subtree: true });
         }
-
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideUpNotification 0.3s ease';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.remove();
-                    }
-                }, 300);
-            }
-        }, 6000);
     }
 
     window.TradeStatusNotifications = {

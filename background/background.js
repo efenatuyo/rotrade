@@ -41,5 +41,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return handleFetchThumbnail(request, sendResponse);
     } else if (request.action === "fetchProofs") {
         return handleFetchProofs(request, sendResponse);
+    } else if (request.action === "clearAccountCaches") {
+        if (commonOwnersCache && commonOwnersCache.map) {
+            commonOwnersCache.map.clear();
+        }
+        if (inventoryCache && inventoryCache.map) {
+            inventoryCache.map.clear();
+        }
+        if (playerAssetsCache && playerAssetsCache.map) {
+            playerAssetsCache.map.clear();
+        }
+        sendResponse({ success: true });
+        return true;
     }
 });

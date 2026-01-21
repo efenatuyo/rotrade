@@ -84,7 +84,7 @@
             autoTradeData.created = new Date().toISOString();
         }
 
-        let autoTrades = Storage.get('autoTrades', []);
+        let autoTrades = Storage.getAccount('autoTrades', []);
 
         if (isEditMode) {
             const tradeIndex = autoTrades.findIndex(trade => trade.id === tradeId || String(trade.id) === String(tradeId));
@@ -98,7 +98,7 @@
             autoTrades.push(autoTradeData);
         }
 
-        Storage.set('autoTrades', autoTrades);
+        Storage.setAccount('autoTrades', autoTrades);
         Storage.flush();
 
         if (isEditMode) {
@@ -109,11 +109,48 @@
     }
 
     async function deleteAutoTrade(id) {
-        const confirmed = await Dialogs.confirm('Delete Auto Trade', 'Are you sure you want to delete this auto trade? This action cannot be undone.', 'Delete', 'Cancel');
-        if (confirmed) {
-            let autoTrades = Storage.get('autoTrades', []);
+        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
+        const matchingCount = pendingTrades.filter(trade => {
+            return trade.autoTradeId === id || 
+                   String(trade.autoTradeId) === String(id);
+        }).length;
+
+        const checkboxLabel = matchingCount > 0 
+            ? `Also decline all ${matchingCount} outbound trade${matchingCount !== 1 ? 's' : ''} from this configuration`
+            : null;
+
+        const result = await Dialogs.confirm(
+            'Delete Auto Trade', 
+            'Are you sure you want to delete this auto trade? This action cannot be undone.', 
+            'Delete', 
+            'Cancel',
+            checkboxLabel ? { checkbox: { label: checkboxLabel } } : {}
+        );
+
+        if (result && (result === true || result.confirmed)) {
+            let autoTrades = Storage.getAccount('autoTrades', []);
             autoTrades = autoTrades.filter(trade => trade.id != id);
-            Storage.set('autoTrades', autoTrades);
+            Storage.setAccount('autoTrades', autoTrades);
+
+            if (result && typeof result === 'object' && result.checkbox === true && DeclineTrades && DeclineTrades.declineMatchingOutboundTrades) {
+                DeclineTrades.declineMatchingOutboundTrades(id).then(declineResult => {
+                    if (declineResult.declined > 0 || declineResult.failed > 0) {
+                        if (window.extensionAlert) {
+                            window.extensionAlert(
+                                'Trades Declined', 
+                                `Successfully declined ${declineResult.declined} outbound trade${declineResult.declined !== 1 ? 's' : ''}.${declineResult.failed > 0 ? ` ${declineResult.failed} failed.` : ''}`,
+                                'info'
+                            );
+                        }
+                    }
+
+                    if (window.loadOutboundTrades) {
+                        setTimeout(() => {
+                            window.loadOutboundTrades();
+                        }, 500);
+                    }
+                });
+            }
 
             const card = document.querySelector(`[data-id="${id}"]`);
             if (card) {

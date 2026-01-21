@@ -1,6 +1,8 @@
 (function() {
     'use strict';
 
+    const { SecurityUtils, TradeDisplayCore, TradeDisplayRenderer, Utils, Storage, DOM } = window;
+
     async function displayTradeOpportunities(opportunities) {
         const grid = DOM.$('#send-trades-grid');
         if (!grid) return;
@@ -16,7 +18,16 @@
                 }
             }
             
-            const autoTrades = Storage.get('autoTrades', []);
+            let autoTrades = [];
+            if (Storage.getCurrentAccountId && Storage.getCurrentAccountId()) {
+                autoTrades = Storage.getAccount('autoTrades', []);
+            } else if (window.API && window.API.getCurrentUserId) {
+                const userId = window.API.getCurrentUserIdSync ? window.API.getCurrentUserIdSync() : (await window.API.getCurrentUserId());
+                if (userId) {
+                    Storage.setCurrentAccountId(userId);
+                    autoTrades = Storage.getAccount('autoTrades', []);
+                }
+            }
             if (autoTrades.length === 0) {
                 grid.innerHTML = '<div class="empty-message">No auto-trades available. Create some auto-trades first!</div>';
                 return;
@@ -55,9 +66,7 @@
 
         let rolimonData = {};
         try {
-            const response = await chrome.runtime.sendMessage({
-                action: 'fetchRolimons'
-            });
+            const response = await chrome.runtime.sendMessage({ action: 'fetchRolimons' });
             if (response.success) {
                 rolimonData = response.data.items || {};
             }
@@ -110,73 +119,13 @@
         }
 
         grid.innerHTML = tradesToShow.map(opportunity => {
-            const givingItems = opportunity.giving.map(item => {
-                const itemId = String(item.id || item.itemId || '');
-                const itemName = item.name || 'Unknown Item';
-                const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
-                const itemNameDisplay = SecurityUtils.sanitizeHtml(item.name && item.name.length > 15 ? item.name.substring(0, 15) + '...' : itemName);
-                const itemNameTitle = SecurityUtils.sanitizeHtml(itemName);
-                return `<div class="item-card-compact">
-                    <div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemNameTitle}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>
-                    <div class="item-info-compact">
-                        <div class="item-name-compact">${itemNameDisplay}</div>
-                        <div class="item-values-compact">
-                            <span class="rap-text">RAP: ${(item.rap || 0).toLocaleString()}</span>
-                            <span class="value-text">VAL: ${(item.value || 0).toLocaleString()}</span>
-                        </div>
-                    </div>
-                </div>`;
-            }).join('');
-
-            const receivingItems = opportunity.receiving.map(item => {
-                const itemId = String(item.id || item.itemId || '');
-                const itemName = item.name || 'Unknown Item';
-                const itemNameShort = SecurityUtils.sanitizeHtml((item.name || 'UI').substring(0, 2).toUpperCase());
-                const itemNameDisplay = SecurityUtils.sanitizeHtml(item.name && item.name.length > 15 ? item.name.substring(0, 15) + '...' : itemName);
-                const itemNameTitle = SecurityUtils.sanitizeHtml(itemName);
-                return `<div class="item-card-compact">
-                    <div class="item-icon" data-item-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-id="${SecurityUtils.sanitizeAttribute(itemId)}" data-item-name="${SecurityUtils.sanitizeAttribute(item.name || '')}" title="${itemNameTitle}&#10;RAP ${(item.rap || 0).toLocaleString()}&#10;VAL ${(item.value || 0).toLocaleString()}">${itemNameShort}</div>
-                    <div class="item-info-compact">
-                        <div class="item-name-compact">${itemNameDisplay}</div>
-                        <div class="item-values-compact">
-                            <span class="rap-text">RAP: ${(item.rap || 0).toLocaleString()}</span>
-                            <span class="value-text">VAL: ${(item.value || 0).toLocaleString()}</span>
-                        </div>
-                    </div>
-                </div>`;
-            }).join('');
-
-            let robuxGetHtml = '';
-            if (opportunity.robuxGet && opportunity.robuxGet > 0) {
-                const afterTaxRobux = Math.floor(opportunity.robuxGet * 0.7);
-                robuxGetHtml = `
-                    <div class="item-card-compact" style="margin-top: 8px;">
-                        <div class="item-icon" style="background: #00d26a; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">R$</div>
-                        <div class="item-info-compact">
-                            <div class="item-name-compact">${opportunity.robuxGet.toLocaleString()} Robux</div>
-                            <div class="item-values-compact" style="color: #888; font-size: 11px;">
-                                (${afterTaxRobux.toLocaleString()} robux after tax)
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            let robuxGiveHtml = '';
-            if (opportunity.robuxGive && opportunity.robuxGive > 0) {
-                const afterTaxRobux = Math.floor(opportunity.robuxGive * 0.7);
-                robuxGiveHtml = `
-                    <div class="item-card-compact" style="margin-top: 8px;">
-                        <div class="item-icon" style="background: #00d26a; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">R$</div>
-                        <div class="item-info-compact">
-                            <div class="item-name-compact">${opportunity.robuxGive.toLocaleString()} Robux</div>
-                            <div class="item-values-compact" style="color: #888; font-size: 11px;">
-                                (${afterTaxRobux.toLocaleString()} robux after tax)
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
+            if (!opportunity) return '';
+            const giving = Array.isArray(opportunity.giving) ? opportunity.giving : [];
+            const receiving = Array.isArray(opportunity.receiving) ? opportunity.receiving : [];
+            const givingItems = TradeDisplayRenderer.renderItems(giving, 0, 'compact');
+            const receivingItems = TradeDisplayRenderer.renderItems(receiving, 0, 'compact');
+            const robuxGetHtml = TradeDisplayRenderer.renderRobux(opportunity.robuxGet, 'compact');
+            const robuxGiveHtml = TradeDisplayRenderer.renderRobux(opportunity.robuxGive, 'compact');
 
             let lastOnlineHtml = '';
             let daysOwnedHtml = '';
@@ -207,53 +156,12 @@
                 }
             }
 
-            return `
-                <div class="send-trade-card trade-card">
-                    <div class="send-trade-header">
-                        <div class="trade-info-compact">
-                            <div class="trade-title-compact">${SecurityUtils.sanitizeHtml(opportunity.name)}</div>
-                            <div class="trade-target">→ ${SecurityUtils.sanitizeHtml(opportunity.targetUser.username)}</div>
-                            ${lastOnlineHtml}
-                            ${daysOwnedHtml}
-                        </div>
-                        <div class="header-right-section">
-                            ${(() => {
-                                const avatarUrl = SecurityUtils.sanitizeUrl(opportunity.targetUser.avatarUrl);
-                                const username = SecurityUtils.sanitizeAttribute(opportunity.targetUser.username);
-                                const fallbackImg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg==';
-                                return avatarUrl ? `<img src="${SecurityUtils.sanitizeAttribute(avatarUrl)}" alt="${username}" class="user-avatar-compact" style="opacity: 0.7;" onerror="this.src='${fallbackImg}'" />` : `<img src="${fallbackImg}" alt="${username}" class="user-avatar-compact" style="opacity: 0.7;" />`;
-                            })()}
-                        </div>
-                    </div>
+            const avatarUrl = SecurityUtils.sanitizeUrl(opportunity.targetUser.avatarUrl);
+            const username = SecurityUtils.sanitizeAttribute(opportunity.targetUser.username);
+            const fallbackImg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg==';
+            const avatarHtml = avatarUrl ? `<img src="${SecurityUtils.sanitizeAttribute(avatarUrl)}" alt="${username}" class="user-avatar-compact" style="opacity: 0.7;" onerror="this.src='${fallbackImg}'" />` : `<img src="${fallbackImg}" alt="${username}" class="user-avatar-compact" style="opacity: 0.7;" />`;
 
-                    <div class="trade-content-compact">
-                        <div class="trade-section-compact">
-                            <div class="section-title-compact">GIVE</div>
-                            <div class="trade-items-compact">
-                                ${givingItems}
-                                ${robuxGiveHtml}
-                            </div>
-                        </div>
-
-                        <div class="trade-section-compact">
-                            <div class="section-title-compact">GET</div>
-                            <div class="trade-items-compact">
-                                ${receivingItems}
-                                ${robuxGetHtml}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="send-trade-actions">
-                        <button class="btn btn-success btn-sm send-trade-btn" data-user-id="${SecurityUtils.sanitizeAttribute(opportunity.targetUserId)}" data-trade-id="${SecurityUtils.sanitizeAttribute(opportunity.id)}">
-                            SEND
-                        </button>
-                        <a href="https://www.roblox.com/users/${SecurityUtils.sanitizeAttribute(opportunity.targetUserId)}/profile" target="_blank" class="btn btn-secondary btn-sm" rel="noopener noreferrer">
-                            PROFILE
-                        </a>
-                    </div>
-                </div>
-            `;
+            return `<div class="send-trade-card trade-card"><div class="send-trade-header"><div class="trade-info-compact"><div class="trade-title-compact">${SecurityUtils.sanitizeHtml(opportunity.name)}</div><div class="trade-target">→ ${SecurityUtils.sanitizeHtml(opportunity.targetUser.username)}</div>${lastOnlineHtml}${daysOwnedHtml}</div><div class="header-right-section">${avatarHtml}</div></div><div class="trade-content-compact"><div class="trade-section-compact"><div class="section-title-compact">GIVE</div><div class="trade-items-compact">${givingItems}${robuxGiveHtml}</div></div><div class="trade-section-compact"><div class="section-title-compact">GET</div><div class="trade-items-compact">${receivingItems}${robuxGetHtml}</div></div></div><div class="send-trade-actions"><button class="btn btn-success btn-sm send-trade-btn" data-user-id="${SecurityUtils.sanitizeAttribute(opportunity.targetUserId)}" data-trade-id="${SecurityUtils.sanitizeAttribute(opportunity.id)}">SEND</button><a href="https://www.roblox.com/users/${SecurityUtils.sanitizeAttribute(opportunity.targetUserId)}/profile" target="_blank" class="btn btn-secondary btn-sm" rel="noopener noreferrer">PROFILE</a></div></div>`;
         }).join('');
 
         const allItemIds = new Set();
@@ -294,10 +202,7 @@
         Pagination.updatePaginationControls();
     }
 
-    window.TradeDisplayOpportunities = {
-        displayTradeOpportunities
-    };
-
+    window.TradeDisplayOpportunities = { displayTradeOpportunities };
     window.displayTradeOpportunities = displayTradeOpportunities;
 
 })();

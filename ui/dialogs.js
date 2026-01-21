@@ -120,10 +120,33 @@
         });
     }
 
-    function showConfirm(title, message, confirmText = 'Confirm', cancelText = 'Cancel') {
+    function showConfirm(title, message, confirmText = 'Confirm', cancelText = 'Cancel', options = {}) {
         return new Promise((resolve) => {
             const overlay = createDialogOverlay();
             const dialog = createDialogBox(title, message, 'confirm');
+            const messageContainer = dialog.querySelector('p');
+            
+            if (options.checkbox) {
+                const checkboxContainer = document.createElement('div');
+                checkboxContainer.style.cssText = 'margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--auto-trades-border, #4a4c4e); display: flex; align-items: center;';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'extension-dialog-checkbox';
+                checkbox.style.cssText = 'margin-right: 8px; cursor: pointer; flex-shrink: 0;';
+                
+                const label = document.createElement('label');
+                label.htmlFor = 'extension-dialog-checkbox';
+                label.textContent = options.checkbox.label || '';
+                label.style.cssText = 'cursor: pointer; font-size: 14px; color: var(--auto-trades-text-secondary, #bdbebe); display: inline; margin: 0;';
+                
+                checkboxContainer.appendChild(checkbox);
+                checkboxContainer.appendChild(label);
+                messageContainer.parentElement.appendChild(checkboxContainer);
+                
+                dialog.checkbox = checkbox;
+            }
+            
             const buttonsContainer = dialog.querySelector('.extension-dialog-buttons');
 
             const cancelButton = document.createElement('button');
@@ -185,7 +208,14 @@
             };
 
             cancelButton.addEventListener('click', () => closeDialog(false));
-            confirmButton.addEventListener('click', () => closeDialog(true));
+            confirmButton.addEventListener('click', () => {
+                if (dialog.checkbox) {
+                    const checkboxValue = dialog.checkbox.checked;
+                    closeDialog({ confirmed: true, checkbox: checkboxValue });
+                } else {
+                    closeDialog(true);
+                }
+            });
 
             buttonsContainer.appendChild(cancelButton);
             buttonsContainer.appendChild(confirmButton);

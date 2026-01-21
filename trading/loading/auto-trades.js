@@ -2,7 +2,15 @@
     'use strict';
 
     async function loadAutoTradeData() {
-        let autoTrades = Storage.get('autoTrades', []);
+        if (!Storage.getCurrentAccountId || !Storage.getCurrentAccountId()) {
+            if (window.API && window.API.getCurrentUserId) {
+                const userId = window.API.getCurrentUserIdSync ? window.API.getCurrentUserIdSync() : (await window.API.getCurrentUserId());
+                if (userId) {
+                    Storage.setCurrentAccountId(userId);
+                }
+            }
+        }
+        let autoTrades = Storage.getAccount('autoTrades', []);
 
         let rolimonData = {};
         try {

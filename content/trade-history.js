@@ -2,11 +2,11 @@
     'use strict';
 
     function getSentTradeHistory() {
-        return Storage.get('sentTradeHistory', []);
+        return Storage.getAccount('sentTradeHistory', []);
     }
 
     function saveSentTradeHistory(history) {
-        Storage.set('sentTradeHistory', history);
+        Storage.setAccount('sentTradeHistory', history);
     }
 
     async function generateTradeHash(yourItemIds, theirItemIds, yourRobux, theirRobux) {

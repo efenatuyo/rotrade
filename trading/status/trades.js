@@ -1,13 +1,17 @@
 (function() {
     'use strict';
 
+    const Storage = window.ModuleRegistry?.getSafe('Storage') || window.Storage;
+    const TradeNotificationQueue = window.ModuleRegistry?.getSafe('TradeNotificationQueue') || window.TradeNotificationQueue;
+    const TradeNotifications = window.ModuleRegistry?.getSafe('TradeNotifications') || window.TradeStatusNotifications || { showTradeNotification: window.showTradeNotification };
+
     function moveTradeToFinalized(trade, status) {
-        let pendingTrades = Storage.get('pendingExtensionTrades', []);
+        let pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
         const wasPending = pendingTrades.some(t => t.id === trade.id);
         pendingTrades = pendingTrades.filter(t => t.id !== trade.id);
-        Storage.set('pendingExtensionTrades', pendingTrades);
+        Storage.setAccount('pendingExtensionTrades', pendingTrades);
 
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
         const existingIndex = finalizedTrades.findIndex(t => t.id === trade.id);
         
         const finalizedTrade = {
@@ -21,10 +25,15 @@
         } else {
             finalizedTrades.push(finalizedTrade);
         }
-        Storage.set('finalizedExtensionTrades', finalizedTrades);
+        Storage.setAccount('finalizedExtensionTrades', finalizedTrades);
 
         if (wasPending && (status === 'completed' || status === 'accepted' || status === 'countered' || status === 'declined')) {
-            if (window.showTradeNotification) {
+            if (status === 'declined' && trade.userDeclined === true) {
+                return;
+            }
+            if (TradeNotifications && TradeNotifications.showTradeNotification) {
+                TradeNotifications.showTradeNotification(trade, status);
+            } else if (window.showTradeNotification) {
                 window.showTradeNotification(trade, status);
             }
         }
@@ -40,7 +49,7 @@
     }
 
     function processStatusUpdates(pendingTrades, tradeStatusMap) {
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
         const stillPending = [];
         const movedTrades = [];
 
@@ -91,8 +100,18 @@
             notifiedSet.add(notificationKey);
             
             const shouldNotify = ['completed', 'accepted', 'countered', 'declined'].includes(status);
-            if (shouldNotify && window.showTradeNotification) {
-                window.showTradeNotification(trade, status);
+            if (shouldNotify) {
+                if (status === 'declined' && trade.userDeclined === true) {
+                    return;
+                }
+                
+                if (TradeNotificationQueue && TradeNotificationQueue.queueNotification) {
+                    TradeNotificationQueue.queueNotification(trade, status);
+                } else if (TradeNotifications && TradeNotifications.showTradeNotification) {
+                    TradeNotifications.showTradeNotification(trade, status);
+                } else if (window.showTradeNotification) {
+                    window.showTradeNotification(trade, status);
+                }
             }
         });
 

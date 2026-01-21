@@ -51,7 +51,7 @@
 
         // Handle specific trade shuffle
         const activeTradeId = activeFilter ? activeFilter.dataset.tradeId : null;
-        const autoTrades = Storage.get('autoTrades', []);
+        const autoTrades = Storage.getAccount('autoTrades', []);
         const currentTrade = autoTrades.find(t => t.id == activeTradeId);
 
         if (!currentTrade) return;
@@ -69,8 +69,8 @@
             return;
         }
 
-        const oldSentTrades = new Set(Storage.get('sentTrades', []));
-        const history = Storage.get('sentTradeHistory', []);
+        const oldSentTrades = new Set(Storage.getAccount('sentTrades', []));
+        const history = Storage.getAccount('sentTradeHistory', []);
         const settings = Trades.getSettings();
         const now = Date.now();
         const expiryMs = settings.tradeMemoryDays * 24 * 60 * 60 * 1000;

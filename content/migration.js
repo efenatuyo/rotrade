@@ -4,7 +4,7 @@
     function migrateTradesForRobux() {
         let migrated = 0;
 
-        const pendingTrades = Storage.get('pendingExtensionTrades', []);
+        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
         pendingTrades.forEach(trade => {
             if (trade.robuxGive === undefined) {
                 trade.robuxGive = 0;
@@ -14,9 +14,9 @@
                 trade.robuxGet = 0;
             }
         });
-        Storage.set('pendingExtensionTrades', pendingTrades);
+        Storage.setAccount('pendingExtensionTrades', pendingTrades);
 
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
         finalizedTrades.forEach(trade => {
             if (trade.robuxGive === undefined) {
                 trade.robuxGive = 0;
@@ -26,7 +26,7 @@
                 trade.robuxGet = 0;
             }
         });
-        Storage.set('finalizedExtensionTrades', finalizedTrades);
+        Storage.setAccount('finalizedExtensionTrades', finalizedTrades);
     }
 
     window.migrateTradesForRobux = migrateTradesForRobux;

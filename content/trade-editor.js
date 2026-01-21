@@ -203,7 +203,7 @@
             });
         });
 
-        const autoTrades = Storage.get('autoTrades', []);
+        const autoTrades = Storage.getAccount('autoTrades', []);
 
         return { inventoryCards: inventoryCards.length, itemGroups, autoTrades: autoTrades.length };
     };

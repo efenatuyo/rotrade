@@ -3,12 +3,12 @@
 
     async function validateAutoTradesInventory() {
         try {
-            const autoTrades = Storage.get('autoTrades', []);
+            const autoTrades = Storage.getAccount('autoTrades', []);
             if (autoTrades.length === 0) {
                 return;
             }
 
-            const currentUserId = await Inventory.getCurrentUserId();
+            const currentUserId = Inventory.getCurrentUserId() || await Inventory.getCurrentUserIdAsync();
             if (!currentUserId) {
                 return;
             }
@@ -26,9 +26,9 @@
 
             const userInventory = await Inventory.getUserCollectibles(currentUserId);
             if (!userInventory || userInventory.length === 0) {
-                Storage.set('autoTrades', []);
-                const pendingTrades = Storage.get('pendingExtensionTrades', []);
-                Storage.set('pendingExtensionTrades', []);
+                Storage.setAccount('autoTrades', []);
+                const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
+                Storage.setAccount('pendingExtensionTrades', []);
                 return;
             }
 
@@ -107,7 +107,7 @@
                 }
             }
 
-            const pendingTrades = Storage.get('pendingExtensionTrades', []);
+            const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
             const validPendingTrades = [];
 
             for (const trade of pendingTrades) {
@@ -170,8 +170,8 @@
             }
 
             if (invalidTradeIds.size > 0 || validPendingTrades.length !== pendingTrades.length) {
-                Storage.set('autoTrades', validAutoTrades);
-                Storage.set('pendingExtensionTrades', validPendingTrades);
+                Storage.setAccount('autoTrades', validAutoTrades);
+                Storage.setAccount('pendingExtensionTrades', validPendingTrades);
                 Storage.flush();
             }
         } catch (error) {

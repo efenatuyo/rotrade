@@ -14,14 +14,14 @@
     }
 
     async function updateTradeStatuses() {
-        const pendingTrades = Storage.get('pendingExtensionTrades', []);
+        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
         if (pendingTrades.length === 0) return;
 
         const statusChecks = await Promise.all(
             pendingTrades.map(trade => checkTradeStatus(trade.id))
         );
 
-        const finalizedTrades = Storage.get('finalizedExtensionTrades', []);
+        const finalizedTrades = Storage.getAccount('finalizedExtensionTrades', []);
         const stillPending = [];
 
         pendingTrades.forEach((trade, index) => {
@@ -45,7 +45,7 @@
     }
 
     async function checkAndUpdateTradeStatuses() {
-        const pendingTrades = Storage.get('pendingExtensionTrades', []);
+        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
         if (pendingTrades.length === 0) return;
 
         await checkRobloxTradeStatuses();

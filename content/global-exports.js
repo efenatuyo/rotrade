@@ -81,8 +81,12 @@
         return Inventory.loadInventoryData();
     }
 
-    async function getCurrentUserId() {
+    function getCurrentUserId() {
         return Inventory.getCurrentUserId();
+    }
+
+    async function getCurrentUserIdAsync() {
+        return Inventory.getCurrentUserIdAsync ? await Inventory.getCurrentUserIdAsync() : Inventory.getCurrentUserId();
     }
 
     async function getUserCollectibles(userId) {

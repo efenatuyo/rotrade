@@ -71,6 +71,21 @@
                     }
 
                     result = await tradesService.getTradeStatus(data.tradeId);
+                } else if (action === 'declineTrade') {
+
+                    const tradesElement = document.querySelector('[trades]');
+                    if (!tradesElement) {
+                        throw new Error('No [trades] element found');
+                    }
+
+                    const injector = window.angular.element(tradesElement).injector();
+                    const tradesService = injector.get('tradesService');
+
+                    if (!tradesService || !tradesService.declineTrade) {
+                        throw new Error('TradesService.declineTrade not available');
+                    }
+
+                    result = await tradesService.declineTrade(data.tradeId);
                 }
 
                 window.dispatchEvent(new CustomEvent('extensionBridgeResponse', {

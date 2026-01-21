@@ -4,7 +4,7 @@
     async function loadOutboundTrades() {
         Storage.clearCache('pendingExtensionTrades');
         Storage.flush();
-        const pendingTrades = Storage.get('pendingExtensionTrades', []);
+        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
 
         if (pendingTrades.length === 0) {
             if (window.displayTrades) {

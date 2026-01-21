@@ -30,23 +30,23 @@
         dailyCounts[tradeId] = (dailyCounts[tradeId] || 0) + 1;
         Storage.set(tradeCountsKey, dailyCounts);
 
-        const autoTrades = Storage.get('autoTrades', []);
+        const autoTrades = Storage.getAccount('autoTrades', []);
         const tradeIndex = autoTrades.findIndex(t => t.id == tradeId);
         if (tradeIndex !== -1) {
             autoTrades[tradeIndex].settings.tradesExecutedToday = dailyCounts[tradeId];
             autoTrades[tradeIndex].lastExecuted = new Date().toISOString();
-            Storage.set('autoTrades', autoTrades);
+            Storage.setAccount('autoTrades', autoTrades);
         }
 
         return dailyCounts[tradeId];
     }
 
     function getSentTradeHistory() {
-        return Storage.get('sentTradeHistory', []);
+        return Storage.getAccount('sentTradeHistory', []);
     }
 
     function saveSentTradeHistory(history) {
-        Storage.set('sentTradeHistory', history);
+        Storage.setAccount('sentTradeHistory', history);
     }
 
     async function generateTradeHash(yourItemIds, theirItemIds, yourRobux, theirRobux) {
