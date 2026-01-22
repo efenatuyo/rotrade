@@ -105,10 +105,8 @@
             window.editingTradeId = undefined;
         }
 
-        const pathname = window.location.pathname;
-        const langMatch = pathname.match(/^\/([a-z]{2})\//);
-        const langPrefix = langMatch ? `/${langMatch[1]}` : '';
-        window.location.href = langPrefix + '/auto-trades';
+        const path = window.Routing ? window.Routing.buildPath('/auto-trades') : '/auto-trades';
+        window.location.href = path;
     }
 
     async function deleteAutoTrade(id) {

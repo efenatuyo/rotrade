@@ -25,8 +25,8 @@
     document.addEventListener('click', function(e) {
         if (e.target.closest('#nav-auto-trades')) {
             e.preventDefault();
-            const langPrefix = window.Routing ? window.Routing.getLanguagePrefix() : '';
-            window.location.href = (langPrefix || '') + '/auto-trades';
+            const path = window.Routing ? window.Routing.buildPath('/auto-trades') : '/auto-trades';
+            window.location.href = path;
         }
     });
 

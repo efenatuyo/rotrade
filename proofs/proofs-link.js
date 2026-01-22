@@ -3,7 +3,7 @@
 
     function shouldProcessItemCard(itemCard) {
         const pathname = window.location.pathname;
-        const normalizedPath = pathname.replace(/^\/([a-z]{2})\//, '/') || '/';
+        const normalizedPath = window.Routing ? window.Routing.normalizePath(pathname) : pathname;
         if (normalizedPath !== '/trades') return false;
         if (document.body.classList.contains('path-auto-trades-send')) return false;
 

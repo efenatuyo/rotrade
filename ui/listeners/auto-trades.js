@@ -77,10 +77,8 @@
             sendTradesBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 sessionStorage.setItem('loadSendTrades', 'true');
-                const pathname = window.location.pathname;
-                const langMatch = pathname.match(/^\/([a-z]{2})\//);
-                const langPrefix = langMatch ? `/${langMatch[1]}` : '';
-                window.location.href = langPrefix + '/trades';
+                const path = window.Routing ? window.Routing.buildPath('/trades') : '/trades';
+                window.location.href = path;
             });
         }
 

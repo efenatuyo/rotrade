@@ -128,7 +128,7 @@
         }
 
         const pathname = window.location.pathname;
-        const normalizedPath = pathname.replace(/^\/([a-z]{2})\//, '/') || '/';
+        const normalizedPath = window.Routing ? window.Routing.normalizePath(pathname) : pathname;
         if (normalizedPath === '/auto-trades' && window.loadTradeOpportunities) {
             setTimeout(() => {
                 if (window.loadTradeOpportunities) {

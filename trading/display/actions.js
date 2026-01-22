@@ -121,10 +121,8 @@
 
                 if (tradeToEdit) {
                     Storage.set('editingTrade', tradeToEdit);
-                    const pathname = window.location.pathname;
-                    const langMatch = pathname.match(/^\/([a-z]{2})\//);
-                    const langPrefix = langMatch ? `/${langMatch[1]}` : '';
-                    window.location.href = langPrefix + '/auto-trades/create';
+                    const path = window.Routing ? window.Routing.buildPath('/auto-trades/create') : '/auto-trades/create';
+                    window.location.href = path;
                 }
             }
         }

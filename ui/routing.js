@@ -78,7 +78,7 @@
         if ((normalizedPath === '/auto-trades' || normalizedPath.startsWith('/auto-trades/') || normalizedPath === '/trades') && currentPath === normalizedPath && !currentPath.match(/^\/[a-z]{2}\//)) {
             const htmlLang = document.documentElement.lang || navigator.language || navigator.userLanguage || 'en';
             const langCode = htmlLang.split('-')[0].split('_')[0].toLowerCase();
-            if (langCode && langCode.length === 2) {
+            if (langCode && langCode.length === 2 && langCode !== 'en') {
                 window.location.href = `/${langCode}${currentPath}`;
                 return;
             }

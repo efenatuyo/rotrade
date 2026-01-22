@@ -2,15 +2,11 @@
     'use strict';
 
     function getLanguagePrefix() {
-        const pathname = window.location.pathname;
-        const match = pathname.match(/^\/([a-z]{2})\//);
-        return match ? `/${match[1]}` : '';
+        return window.Routing ? window.Routing.getLanguagePrefix() : '';
     }
 
     function buildPath(path) {
-        const langPrefix = getLanguagePrefix();
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return langPrefix + cleanPath;
+        return window.Routing ? window.Routing.buildPath(path) : path;
     }
 
     window.PagesUtils = {
