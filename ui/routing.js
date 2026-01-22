@@ -1,6 +1,23 @@
 (function() {
     'use strict';
 
+    function getLanguagePrefix() {
+        const pathname = window.location.pathname;
+        const match = pathname.match(/^\/([a-z]{2})\//);
+        return match ? `/${match[1]}` : '';
+    }
+
+    function buildPath(path) {
+        const langPrefix = getLanguagePrefix();
+        const cleanPath = path.startsWith('/') ? path : `/${path}`;
+        return langPrefix + cleanPath;
+    }
+
+    function normalizePath(pathname) {
+        const normalized = pathname.replace(/^\/([a-z]{2})\//, '/');
+        return normalized || '/';
+    }
+
     function detectAndApplyTheme() {
         const isDarkMode = document.body.classList.contains('dark-theme') ||
                           document.documentElement.classList.contains('dark-theme') ||
@@ -27,15 +44,19 @@
     }
 
     function addAutoTradesTab() {
-        const tradeLink = document.querySelector('a[href="https://www.roblox.com/trades"]');
+        // Find trade link regardless of language - look for links containing /trades
+        const tradeLink = document.querySelector('a[href*="/trades"], a[id="nav-trade"]');
         if (tradeLink) {
             const existingAutoTrades = document.querySelector('#nav-auto-trades');
             if (existingAutoTrades) return;
 
+            const langPrefix = getLanguagePrefix();
+            const autoTradesPath = buildPath('/auto-trades');
+
             const autoTradesLink = document.createElement('li');
             autoTradesLink.style.display = 'block';
             autoTradesLink.innerHTML = `
-                <a class="dynamic-overflow-container text-nav" href="/auto-trades" id="nav-auto-trades" target="_self">
+                <a class="dynamic-overflow-container text-nav" href="${autoTradesPath}" id="nav-auto-trades" target="_self">
                     <div><span class="icon-nav-trade"></span></div>
                     <span class="font-header-2 dynamic-ellipsis-item" title="Auto Trades">Auto Trades</span>
                 </a>
@@ -50,12 +71,22 @@
 
     function handleRouting() {
         const currentPath = window.location.pathname;
+        const normalizedPath = normalizePath(currentPath);
         const currentHash = window.location.hash;
         const shouldLoadSendTrades = sessionStorage.getItem('loadSendTrades') === 'true';
 
+        if ((normalizedPath === '/auto-trades' || normalizedPath.startsWith('/auto-trades/') || normalizedPath === '/trades') && currentPath === normalizedPath && !currentPath.match(/^\/[a-z]{2}\//)) {
+            const htmlLang = document.documentElement.lang || navigator.language || navigator.userLanguage || 'en';
+            const langCode = htmlLang.split('-')[0].split('_')[0].toLowerCase();
+            if (langCode && langCode.length === 2) {
+                window.location.href = `/${langCode}${currentPath}`;
+                return;
+            }
+        }
+
         detectAndApplyTheme();
 
-        if (currentPath === '/auto-trades') {
+        if (normalizedPath === '/auto-trades') {
             document.body.classList.add('path-auto-trades');
             if (window.loadAutoTradesPage) {
                 window.loadAutoTradesPage();
@@ -66,7 +97,7 @@
                     }
                 }, 100);
             }
-        } else if (currentPath === '/auto-trades/create') {
+        } else if (normalizedPath === '/auto-trades/create') {
             document.body.classList.add('path-auto-trades-create');
             if (window.loadCreateTradePage) {
                 window.loadCreateTradePage();
@@ -77,7 +108,7 @@
                     }
                 }, 100);
             }
-        } else if (currentPath === '/auto-trades/settings') {
+        } else if (normalizedPath === '/auto-trades/settings') {
             document.body.classList.add('path-auto-trades-settings');
             if (window.loadSettingsPage) {
                 window.loadSettingsPage();
@@ -88,7 +119,7 @@
                     }
                 }, 100);
             }
-        } else if (currentPath === '/trades' && shouldLoadSendTrades) {
+        } else if (normalizedPath === '/trades' && shouldLoadSendTrades) {
             sessionStorage.removeItem('loadSendTrades');
             document.body.classList.add('path-auto-trades-send');
             if (window.loadSendTradesPage) {
@@ -100,7 +131,7 @@
                     }
                 }, 100);
             }
-        } else if (currentPath === '/trades' && currentHash === '#/auto-trades-send') {
+        } else if (normalizedPath === '/trades' && currentHash === '#/auto-trades-send') {
             document.body.classList.add('path-auto-trades-send');
             if (window.loadSendTradesPage) {
                 window.loadSendTradesPage();
@@ -111,11 +142,11 @@
                     }
                 }, 100);
             }
-        } else if (currentPath === '/auto-trades/send') {
+        } else if (normalizedPath === '/auto-trades/send') {
             sessionStorage.setItem('loadSendTrades', 'true');
-            window.location.href = '/trades';
-        } else if (currentPath.match(/^\/proofs\/(\d+)$/)) {
-            const match = currentPath.match(/^\/proofs\/(\d+)$/);
+            window.location.href = buildPath('/trades');
+        } else if (normalizedPath.match(/^\/proofs\/(\d+)$/)) {
+            const match = normalizedPath.match(/^\/proofs\/(\d+)$/);
             const itemId = match ? match[1] : null;
             document.body.classList.add('path-proofs');
             if (itemId && window.loadProofsPage) {
@@ -135,6 +166,9 @@
     window.Routing = {
         handleRouting,
         addAutoTradesTab,
-        detectAndApplyTheme
+        detectAndApplyTheme,
+        getLanguagePrefix,
+        buildPath,
+        normalizePath
     };
 })();

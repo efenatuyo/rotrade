@@ -2,9 +2,12 @@
     'use strict';
 
     function loadCreateTradePage() {
+        const langPrefix = window.PagesUtils ? window.PagesUtils.getLanguagePrefix() : '';
+        const buildPath = window.PagesUtils ? window.PagesUtils.buildPath : (path) => (langPrefix || '') + path;
+        
         const content = `
             <div class="create-trade-container">
-                <a href="/auto-trades" class="back-link">
+                <a href="${buildPath('/auto-trades')}" class="back-link">
                     ← Back to Auto Trades
                 </a>
 

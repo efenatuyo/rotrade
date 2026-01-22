@@ -2,18 +2,21 @@
     'use strict';
 
     function loadAutoTradesPage() {
+        const langPrefix = window.PagesUtils ? window.PagesUtils.getLanguagePrefix() : '';
+        const buildPath = window.PagesUtils ? window.PagesUtils.buildPath : (path) => (langPrefix || '') + path;
+        
         const content = `
             <div class="auto-trades-container">
                 <div class="auto-trades-header">
                     <h1 class="auto-trades-title">Auto Trades</h1>
                     <div class="control-panel">
-                        <a href="/auto-trades/settings" class="btn btn-secondary">
+                        <a href="${buildPath('/auto-trades/settings')}" class="btn btn-secondary">
                             SETTINGS
                         </a>
-                        <a href="/trades" class="btn btn-primary" id="send-trades">
+                        <a href="${buildPath('/trades')}" class="btn btn-primary" id="send-trades">
                             SEND TRADES
                         </a>
-                        <a href="/auto-trades/create" class="btn btn-success">
+                        <a href="${buildPath('/auto-trades/create')}" class="btn btn-success">
                             CREATE NEW AUTO TRADE
                         </a>
                     </div>

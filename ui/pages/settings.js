@@ -3,10 +3,12 @@
 
     function loadSettingsPage() {
         const settings = Trades.getSettings();
+        const langPrefix = window.PagesUtils ? window.PagesUtils.getLanguagePrefix() : '';
+        const buildPath = window.PagesUtils ? window.PagesUtils.buildPath : (path) => (langPrefix || '') + path;
 
         const content = `
             <div class="auto-trades-container">
-                <a href="/auto-trades" class="back-link">← Back to Auto Trades</a>
+                <a href="${buildPath('/auto-trades')}" class="back-link">← Back to Auto Trades</a>
 
                 <div class="auto-trades-header">
                     <h1 class="auto-trades-title">Settings</h1>

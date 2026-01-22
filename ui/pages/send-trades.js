@@ -2,9 +2,12 @@
     'use strict';
 
     function loadBasicSendTradesInterface() {
+        const langPrefix = window.PagesUtils ? window.PagesUtils.getLanguagePrefix() : '';
+        const buildPath = window.PagesUtils ? window.PagesUtils.buildPath : (path) => (langPrefix || '') + path;
+        
         const content = `
             <div class="send-trades-container">
-                <a href="/auto-trades" class="back-link">← Back to Auto Trades</a>
+                <a href="${buildPath('/auto-trades')}" class="back-link">← Back to Auto Trades</a>
                 <div class="page-header">
                     <h1>Send Trades</h1>
                     <p class="subtitle">Execute your auto-trades by sending them to available users</p>

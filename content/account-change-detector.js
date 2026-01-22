@@ -127,7 +127,9 @@
             window.Pagination.setCurrentPage(1);
         }
 
-        if (window.location.pathname === '/auto-trades' && window.loadTradeOpportunities) {
+        const pathname = window.location.pathname;
+        const normalizedPath = pathname.replace(/^\/([a-z]{2})\//, '/') || '/';
+        if (normalizedPath === '/auto-trades' && window.loadTradeOpportunities) {
             setTimeout(() => {
                 if (window.loadTradeOpportunities) {
                     window.loadTradeOpportunities();

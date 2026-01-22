@@ -6,7 +6,10 @@
         if (backBtn) {
             backBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                window.location.href = '/auto-trades';
+                const pathname = window.location.pathname;
+                const langMatch = pathname.match(/^\/([a-z]{2})\//);
+                const langPrefix = langMatch ? `/${langMatch[1]}` : '';
+                window.location.href = langPrefix + '/auto-trades';
             });
         }
 
