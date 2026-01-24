@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RoTrade - Roblox Trading Automated",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "description": "Smart Roblox trading made simple. Craft your perfect trade and let our algorithm find the best trading partners automatically.",
   "icons": {
     "16": "assets/icon.png",
