@@ -7,10 +7,13 @@
                 const userId = window.API.getCurrentUserIdSync ? window.API.getCurrentUserIdSync() : (await window.API.getCurrentUserId());
                 if (userId) {
                     Storage.setCurrentAccountId(userId);
+                    if (Storage.preloadAccountData) {
+                        await Storage.preloadAccountData(userId);
+                    }
                 }
             }
         }
-        let autoTrades = Storage.getAccount('autoTrades', []);
+        let autoTrades = await Storage.getAccountAsync('autoTrades', []);
 
         let rolimonData = {};
         try {

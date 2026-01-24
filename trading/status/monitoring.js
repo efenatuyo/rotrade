@@ -8,14 +8,14 @@
             clearInterval(statusCheckInterval);
         }
 
-        if (window.checkAndUpdateTradeStatuses) {
-            window.checkAndUpdateTradeStatuses();
+        if (window.checkRobloxTradeStatuses) {
+            window.checkRobloxTradeStatuses().catch(() => {});
         }
         statusCheckInterval = setInterval(() => {
-            if (window.checkAndUpdateTradeStatuses) {
-                window.checkAndUpdateTradeStatuses();
+            if (window.checkRobloxTradeStatuses) {
+                window.checkRobloxTradeStatuses().catch(() => {});
             }
-        }, 5 * 60 * 1000);
+        }, 15 * 1000);
         if (window.tradeStatusIntervals) {
             window.tradeStatusIntervals.add(statusCheckInterval);
         } else {
@@ -39,15 +39,15 @@
             } else {
                 window.tradeStatusIntervals = new Set([window.autoUpdateTimer]);
             }
+            
+            if (window.checkRobloxTradeStatuses) {
+                window.checkRobloxTradeStatuses().catch(() => {});
+            }
+            
             const isAutoTradesPage = document.body.classList.contains('path-auto-trades') ||
                                    document.body.classList.contains('path-auto-trades-send');
 
             if (isAutoTradesPage) {
-                if (window.checkRobloxTradeStatuses) {
-                    window.checkRobloxTradeStatuses().then(movedCount => {
-                    }).catch(error => {
-                    });
-                }
 
                 const activeTab = document.querySelector('.filter-btn.active');
                 if (activeTab) {

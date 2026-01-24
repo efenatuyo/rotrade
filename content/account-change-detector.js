@@ -103,6 +103,9 @@
 
         Storage.setCurrentAccountId(newUserId);
         Storage.clearAccountCache();
+        if (Storage.preloadAccountData) {
+            await Storage.preloadAccountData(newUserId);
+        }
 
         if (window.globalUserStats) {
             window.globalUserStats.clear();
@@ -120,6 +123,10 @@
             window.tradeUserPools = {};
         }
         window.sentTrades = new Set();
+
+        if (window._paginationMemory) {
+            window._paginationMemory = {};
+        }
 
         loadAccountData(newUserId);
 
@@ -149,6 +156,9 @@
             if (lastKnownUserId === null) {
                 lastKnownUserId = currentUserId;
                 Storage.setCurrentAccountId(currentUserId);
+                if (Storage.preloadAccountData) {
+                    await Storage.preloadAccountData(currentUserId);
+                }
                 loadAccountData(currentUserId);
                 return;
             }

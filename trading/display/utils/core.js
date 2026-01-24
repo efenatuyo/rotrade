@@ -89,14 +89,20 @@
 
     const getPagKeys = (id) => ({ currentPage: `${id}CurrentPage`, sortOrder: `${id}SortOrder` });
 
+    if (!window._paginationMemory) {
+        window._paginationMemory = {};
+    }
+
     const getPage = (id, def = 1) => {
         const keys = getPagKeys(id);
-        return parseInt(Storage.get(keys.currentPage, String(def)));
+        const pageStr = window._paginationMemory[keys.currentPage] || String(def);
+        const parsed = parseInt(pageStr);
+        return isNaN(parsed) ? def : parsed;
     };
 
     const setPage = (id, p) => {
         const keys = getPagKeys(id);
-        Storage.set(keys.currentPage, String(p));
+        window._paginationMemory[keys.currentPage] = String(p);
     };
 
     const getSort = (id, def = 'newest') => {
@@ -110,10 +116,13 @@
     };
 
     const calcPag = (total, perPage, curr) => {
-        const totalPages = Math.max(1, Math.ceil(total / perPage));
-        const normPage = Math.min(curr, totalPages);
-        const start = (normPage - 1) * perPage;
-        return { totalPages, currentPage: normPage, startIndex: start, endIndex: start + perPage };
+        const totalItems = isNaN(total) ? 0 : Math.max(0, total);
+        const itemsPerPage = isNaN(perPage) ? 12 : Math.max(1, perPage);
+        const currentPage = isNaN(curr) || curr < 1 ? 1 : curr;
+        const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+        const normPage = Math.min(Math.max(1, currentPage), totalPages);
+        const start = (normPage - 1) * itemsPerPage;
+        return { totalPages, currentPage: normPage, startIndex: start, endIndex: start + itemsPerPage };
     };
 
     const getPagItems = (items, perPage, curr) => {

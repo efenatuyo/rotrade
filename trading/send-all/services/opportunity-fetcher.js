@@ -115,7 +115,7 @@
             for (const userId of userIds) {
                 if (shouldStopCheck()) break;
                 
-                const tradeKey = `${trade.id}-${userId}`;
+                const tradeKey = `${String(trade.id)}-${String(userId)}`;
                 const isOldDuplicate = oldSentTrades.has(tradeKey);
                 const isHashDuplicate = await Trades.isTradeComboSentRecently(userId, yourIds, theirIds, yourR, theirR);
                 

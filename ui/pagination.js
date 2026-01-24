@@ -1,12 +1,19 @@
 (function() {
     'use strict';
 
-    function getCurrentPage() {
-        return parseInt(Storage.get('tradesCurrentPage', '1'));
+
+    if (!window._paginationMemory) {
+        window._paginationMemory = {};
+    }
+
+    async function getCurrentPage() {
+        const page = window._paginationMemory['tradesCurrentPage'] || '1';
+        const parsed = parseInt(page);
+        return isNaN(parsed) ? 1 : parsed;
     }
 
     function setCurrentPage(page) {
-        Storage.set('tradesCurrentPage', page.toString());
+        window._paginationMemory['tradesCurrentPage'] = page.toString();
     }
 
     function getTradesPerPage() {
@@ -19,8 +26,8 @@
         return Math.max(1, Math.ceil(totalTrades / tradesPerPage));
     }
 
-    function updatePaginationControls() {
-        const currentPage = getCurrentPage();
+    async function updatePaginationControls() {
+        const currentPage = await getCurrentPage();
         const totalPages = getTotalPages();
         
         const currentSpan = DOM.$('#pagination-current');
@@ -30,25 +37,36 @@
         
         if (currentSpan) currentSpan.textContent = `Page ${currentPage}`;
         if (totalSpan) totalSpan.textContent = totalPages;
-        if (prevBtn) prevBtn.disabled = currentPage <= 1;
-        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+        if (prevBtn) {
+            prevBtn.disabled = currentPage <= 1;
+        }
+        if (nextBtn) {
+            nextBtn.disabled = currentPage >= totalPages;
+        }
     }
 
-    function displayCurrentPage() {
+    async function displayCurrentPage() {
         const container = DOM.$('#send-trades-grid');
         if (!container) return;
 
-        const currentPage = getCurrentPage();
+        const currentPage = await getCurrentPage();
         const tradesPerPage = getTradesPerPage();
         const startIndex = (currentPage - 1) * tradesPerPage;
         const endIndex = startIndex + tradesPerPage;
+        
+        if (!window.filteredOpportunities || !Array.isArray(window.filteredOpportunities)) {
+            if (window.displayTradeOpportunities) {
+                window.displayTradeOpportunities([]);
+            }
+            return;
+        }
         
         const tradesToShow = window.filteredOpportunities.slice(startIndex, endIndex);
         
         if (window.displayTradeOpportunities) {
             window.displayTradeOpportunities(tradesToShow);
         }
-        updatePaginationControls();
+        await updatePaginationControls();
         
         setTimeout(() => {
             if (window.loadUserAvatars) {

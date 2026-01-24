@@ -30,10 +30,12 @@
     };
 
     const updateDisplay = (els, curr, total) => {
-        if (els.current) els.current.textContent = `Page ${curr}`;
-        if (els.total) els.total.textContent = total;
-        if (els.prev) els.prev.disabled = curr <= 1;
-        if (els.next) els.next.disabled = curr >= total;
+        const currentPage = isNaN(curr) ? 1 : Math.max(1, curr);
+        const totalPages = isNaN(total) ? 1 : Math.max(1, total);
+        if (els.current) els.current.textContent = `Page ${currentPage}`;
+        if (els.total) els.total.textContent = totalPages;
+        if (els.prev) els.prev.disabled = currentPage <= 1;
+        if (els.next) els.next.disabled = currentPage >= totalPages;
     };
 
     const updateSortBtn = (els, containerId, sort) => {

@@ -77,7 +77,6 @@
 
         const container = document.getElementById('expired-container');
         if (!container) {
-            console.warn('Expired container not found');
             return;
         }
 
@@ -119,7 +118,6 @@
 
         const container = document.getElementById('countered-container');
         if (!container) {
-            console.warn('Countered container not found');
             return;
         }
 
@@ -161,7 +159,6 @@
 
         const container = document.getElementById('completed-container');
         if (!container) {
-            console.warn('Completed container not found');
             return;
         }
 

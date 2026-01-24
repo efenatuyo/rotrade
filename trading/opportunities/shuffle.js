@@ -37,10 +37,10 @@
             window.filteredOpportunities = [...shuffled];
 
             Pagination.setCurrentPage(1);
-            Pagination.displayCurrentPage();
+            Pagination.displayCurrentPage().catch(() => {});
             if (window.updateTradeFilterBar) window.updateTradeFilterBar();
             if (window.updateTotalUsersInfo) window.updateTotalUsersInfo();
-            Pagination.updatePaginationControls();
+            Pagination.updatePaginationControls().catch(() => {});
             
             Utils.delay(50).then(() => {
                 if (window.loadUserAvatars) window.loadUserAvatars();
@@ -80,7 +80,7 @@
         const freshOwners = [];
 
         for (const userId of realApiOwners) {
-            const tradeKey = `${currentTrade.id}-${userId}`;
+            const tradeKey = `${String(currentTrade.id)}-${String(userId)}`;
             const isOldDuplicate = oldSentTrades.has(tradeKey);
 
             const currentHash = await Trades.generateTradeHash(yourIds, theirIds, yourR, theirR);
@@ -127,10 +127,10 @@
         window.filteredOpportunities = [...window.currentOpportunities];
 
         Pagination.setCurrentPage(1);
-        Pagination.displayCurrentPage();
+        Pagination.displayCurrentPage().catch(() => {});
         if (window.updateTradeFilterBar) window.updateTradeFilterBar();
         if (window.updateTotalUsersInfo) window.updateTotalUsersInfo();
-        Pagination.updatePaginationControls();
+        Pagination.updatePaginationControls().catch(() => {});
         if (window.loadUserAvatars) window.loadUserAvatars();
 
         Utils.delay(50).then(() => {

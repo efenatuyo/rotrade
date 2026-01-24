@@ -18,7 +18,8 @@
     "default_title": "RoTrade - Smart Trading"
   },
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   "host_permissions": [
     "*://www.roblox.com/*",
@@ -51,6 +52,7 @@
         "core/utils/validation.js",
         "core/utils/security.js",
         "core/utils/cache.js",
+        "core/utils/authenticator.js",
         "core/utils.js",
         "core/bridge-utils.js",
         "ui/thumbnails.js",
@@ -99,6 +101,7 @@
         "trading/trade-sending.js",
         "trading/send-all/progress-dialog.js",
         "trading/send-all/challenge-handler.js",
+        "trading/send-all/auto-confirmer.js",
         "trading/send-all/trade-sender.js",
         "trading/send-all/services/opportunity-fetcher.js",
         "trading/send-all/services/progress-tracker.js",
@@ -121,6 +124,7 @@
         "trading/status/cleanup.js",
         "trading/trade-status.js",
         "ui/dialogs.js",
+        "ui/dialogs-2fa.js",
         "proofs/proofs-link-config.js",
         "proofs/proofs-link-validation.js",
         "proofs/proofs-link-extractor.js",
@@ -147,7 +151,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["assets/styles.css", "assets/bridge.js", "assets/notification.mp3"],
+      "resources": ["assets/styles.css", "assets/bridge.js", "assets/notification.mp3", "assets/tutorial-step1.png", "assets/tutorial-step2.png", "assets/tutorial-step3.png"],
       "matches": ["*://www.roblox.com/*"]
     }
   ]

@@ -42,8 +42,8 @@
         });
 
         Pagination.setCurrentPage(1);
-        Pagination.displayCurrentPage();
-        Pagination.updatePaginationControls();
+        Pagination.displayCurrentPage().catch(() => {});
+        Pagination.updatePaginationControls().catch(() => {});
     }
 
     window.OpportunitiesSorting = {

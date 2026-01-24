@@ -83,7 +83,19 @@
         });
     }
 
+    let csrfTokenCache = {
+        token: null,
+        timestamp: 0
+    };
+    const CSRF_TOKEN_CACHE_DURATION = 60 * 1000;
+
     async function getRobloxCSRFToken() {
+        const now = Date.now();
+        
+        if (csrfTokenCache.token && (now - csrfTokenCache.timestamp) < CSRF_TOKEN_CACHE_DURATION) {
+            return csrfTokenCache.token;
+        }
+
         try {
             const response = await fetch('https://auth.roblox.com/v1/logout', {
                 method: 'POST',
@@ -91,6 +103,14 @@
             });
 
             const csrfToken = response.headers.get('x-csrf-token');
+            
+            if (csrfToken) {
+                csrfTokenCache = {
+                    token: csrfToken,
+                    timestamp: now
+                };
+            }
+            
             return csrfToken;
         } catch (error) {
             return null;

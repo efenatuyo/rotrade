@@ -6,16 +6,18 @@
     let writeTimer = null;
     const WRITE_DELAY = 100;
 
-    function get(key, defaultValue = null) {
+    async function get(key, defaultValue = null) {
+        
         if (cache.has(key)) {
             return cache.get(key);
         }
         try {
-            const value = localStorage.getItem(key);
-            if (value === null) return defaultValue;
-            const parsed = JSON.parse(value);
-            cache.set(key, parsed);
-            return parsed;
+            const result = await chrome.storage.local.get([key]);
+            if (result[key] !== undefined) {
+                cache.set(key, result[key]);
+                return result[key];
+            }
+            return defaultValue;
         } catch {
             return defaultValue;
         }
@@ -47,7 +49,7 @@
         }
     }
 
-    function flushWrites() {
+    async function flushWrites() {
         if (writeQueue.size === 0) {
             writeTimer = null;
             return;
@@ -56,36 +58,28 @@
         const entries = Array.from(writeQueue.entries());
         writeQueue.clear();
 
-        for (let i = 0; i < entries.length; i++) {
-            const [key, value] = entries[i];
-            try {
-                localStorage.setItem(key, JSON.stringify(value));
-            } catch (e) {
-                if (e.name === 'QuotaExceededError') {
-                    try {
-                        const keys = Object.keys(localStorage);
-                        if (keys.length > 0) {
-                            localStorage.removeItem(keys[0]);
-                            localStorage.setItem(key, JSON.stringify(value));
-                        }
-                    } catch {}
-                }
+        try {
+            const updates = {};
+            for (const [key, value] of entries) {
+                updates[key] = value;
             }
+            await chrome.storage.local.set(updates);
+        } catch (e) {
         }
         writeTimer = null;
     }
 
-    function remove(key) {
+    async function remove(key) {
         cache.delete(key);
         try {
-            localStorage.removeItem(key);
+            await chrome.storage.local.remove([key]);
         } catch {}
     }
 
-    function clear() {
+    async function clear() {
         cache.clear();
         try {
-            localStorage.clear();
+            await chrome.storage.local.clear();
         } catch {}
     }
 
@@ -98,7 +92,7 @@
     }
 
     let currentAccountId = null;
-    const ACCOUNT_SPECIFIC_KEYS = ['autoTrades', 'pendingExtensionTrades', 'sentTrades', 'sentTradeHistory', 'finalizedExtensionTrades', 'notifiedTrades'];
+    const ACCOUNT_SPECIFIC_KEYS = ['autoTrades', 'pendingExtensionTrades', 'sentTrades', 'sentTradeHistory', 'finalizedExtensionTrades', 'notifiedTrades', 'privacyRestrictedUsers'];
 
     function getAccountKey(key, accountId) {
         if (!accountId) return key;
@@ -107,7 +101,7 @@
 
     async function getAccountAsync(key, defaultValue = null) {
         if (!ACCOUNT_SPECIFIC_KEYS.includes(key)) {
-            return get(key, defaultValue);
+            return await get(key, defaultValue);
         }
         if (!currentAccountId && window.API) {
             try {
@@ -118,18 +112,24 @@
             } catch {}
         }
         const accountKey = getAccountKey(key, currentAccountId);
-        return get(accountKey, defaultValue);
+        return await get(accountKey, defaultValue);
     }
 
     function getAccount(key, defaultValue = null) {
         if (!ACCOUNT_SPECIFIC_KEYS.includes(key)) {
-            return get(key, defaultValue);
+            if (cache.has(key)) {
+                return cache.get(key);
+            }
+            return defaultValue;
         }
         if (!currentAccountId) {
             return defaultValue;
         }
         const accountKey = getAccountKey(key, currentAccountId);
-        return get(accountKey, defaultValue);
+        if (cache.has(accountKey)) {
+            return cache.get(accountKey);
+        }
+        return defaultValue;
     }
 
     function setAccount(key, value) {
@@ -153,6 +153,23 @@
         return currentAccountId;
     }
 
+    async function preloadAccountData(userId) {
+        if (!userId) return;
+        
+        currentAccountId = userId;
+        const keysToLoad = ACCOUNT_SPECIFIC_KEYS.map(key => getAccountKey(key, userId));
+        
+        try {
+            const results = await chrome.storage.local.get(keysToLoad);
+            for (const [key, value] of Object.entries(results)) {
+                if (value !== undefined) {
+                    cache.set(key, value);
+                }
+            }
+        } catch (e) {
+        }
+    }
+
     window.Storage = { 
         get, 
         set, 
@@ -166,6 +183,9 @@
         setAccount,
         setCurrentAccountId,
         getCurrentAccountId,
-        clearAccountCache
+        clearAccountCache,
+        preloadAccountData
     };
+
+    window.ExtensionStorage = window.Storage;
 })();

@@ -66,6 +66,42 @@
 
         UI.replacePageContent(content);
 
+        (async () => {
+            const userId = API.getCurrentUserIdSync ? API.getCurrentUserIdSync() : (await API.getCurrentUserId());
+            if (userId) {
+                if (!window.ExtensionStorage) {
+                    return;
+                }
+                const storageKey = '2fa_secret_' + userId;
+                const encrypted = await window.Storage.get(storageKey, null);
+                const hasSecret = !!(encrypted && encrypted.trim().length > 0);
+                
+                if (hasSecret) {
+                    if (window.Dialogs2FA && window.Dialogs2FA.showPasswordPrompt) {
+                        const validatePassword = async (password) => {
+                            try {
+                                const secret = await Authenticator.retrieveSecret(userId, password);
+                                return !!(secret && secret.trim().length > 0);
+                            } catch (error) {
+                                return false;
+                            }
+                        };
+                        
+                        const password = await window.Dialogs2FA.showPasswordPrompt(
+                            'Password Required',
+                            'Enter your password to use auto-confirmer. If you cancel, you will be manually prompted for 2FA codes.',
+                            false,
+                            validatePassword
+                        );
+                        
+                        if (password && window.AutoConfirmer && window.AutoConfirmer.setPassword) {
+                            window.AutoConfirmer.setPassword(userId, password);
+                        }
+                    }
+                }
+            }
+        })();
+
         const tryAgainBtn = document.getElementById('try-angular-again');
         if (tryAgainBtn) {
             tryAgainBtn.addEventListener('click', () => {

@@ -7,9 +7,9 @@
 
     async function checkRobloxTradeStatuses() {
         try {
-            const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
+            const pendingTrades = await Storage.getAccountAsync('pendingExtensionTrades', []);
 
-            if (pendingTrades.length === 0) {
+            if (!pendingTrades || pendingTrades.length === 0) {
                 return 0;
             }
 
@@ -22,12 +22,14 @@
                     foundInPaginatedList: new Set(),
                     pendingTradesMap: new Map()
                 };
-
-            if (tradesToCheck.length > 0 && fetcher.fetchStatusForChangedTrades) {
+            
+            const validTradesToCheck = tradesToCheck.filter(tid => tid && tid !== 'undefined' && tid !== 'null');
+            
+            if (validTradesToCheck.length > 0 && fetcher.fetchStatusForChangedTrades) {
                 const onStatusFound = TradeStatusChecker.createStatusFoundCallback?.(tradeStatusMap, pendingTradesMap) || (() => {});
                 
                 const individualStatusMap = await fetcher.fetchStatusForChangedTrades(
-                    tradesToCheck, 
+                    validTradesToCheck, 
                     foundInPaginatedList, 
                     pendingTradesMap, 
                     onStatusFound
@@ -45,7 +47,7 @@
                     }
                 });
 
-                for (const tradeIdStr of tradesToCheck) {
+                for (const tradeIdStr of validTradesToCheck) {
                     const status = individualStatusMap.get(tradeIdStr);
                     if (status && status.trim()) {
                         const normalizedStatus = status.trim().toLowerCase();
@@ -67,6 +69,7 @@
                         if (!isInList) {
                             tradeStatusMap.set(tradeNorm.str, normalizedStatus);
                             tradeStatusMap.set(tradeNorm.num, normalizedStatus);
+                            tradeStatusMap.set(tradeIdStr, normalizedStatus);
                         }
                     }
                 }

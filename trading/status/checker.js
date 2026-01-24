@@ -45,13 +45,14 @@
     }
 
     async function checkAndUpdateTradeStatuses() {
-        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
-        if (pendingTrades.length === 0) return;
+        const pendingTrades = await Storage.getAccountAsync('pendingExtensionTrades', []);
+        if (!pendingTrades || pendingTrades.length === 0) return;
 
         await checkRobloxTradeStatuses();
     }
 
     window.TradeStatusChecker = {
+        ...(window.TradeStatusChecker || {}),
         checkTradeStatus,
         updateTradeStatuses,
         checkAndUpdateTradeStatuses

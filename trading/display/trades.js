@@ -1,4 +1,4 @@
-﻿(function() {
+(function() {
     'use strict';
 
     const { TradeDisplayCore, TradeDisplayRenderer, TradeDisplayPagination, TradeDisplaySizing, Utils } = window;
@@ -46,6 +46,10 @@
 
         const perPage = 12;
         let currPage = TradeDisplayCore.getPage(containerId);
+        if (isNaN(currPage) || currPage < 1) {
+            currPage = 1;
+            TradeDisplayCore.setPage(containerId, 1);
+        }
         const pag = TradeDisplayCore.calcPag(sortedTrades.length, perPage, currPage);
         
         if (pag.currentPage !== currPage) {

@@ -4,7 +4,7 @@
     async function loadOutboundTrades() {
         Storage.clearCache('pendingExtensionTrades');
         Storage.flush();
-        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
+        const pendingTrades = await Storage.getAccountAsync('pendingExtensionTrades', []);
 
         if (pendingTrades.length === 0) {
             if (window.displayTrades) {
@@ -77,7 +77,6 @@
 
         const container = document.getElementById('outbound-container');
         if (!container) {
-            console.warn('Outbound container not found');
             return;
         }
 

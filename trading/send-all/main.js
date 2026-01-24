@@ -9,6 +9,10 @@
     let shouldStopSending = false;
     let globalAbortController = null;
 
+    function getIsSendingAllTrades() {
+        return isSendingAllTrades;
+    }
+
     function shouldStopCheck() {
         return shouldStopSending || globalAbortController?.signal?.aborted || !isSendingAllTrades;
     }
@@ -172,7 +176,6 @@
                         break;
                     }
 
-                    await new Promise(resolve => setTimeout(resolve, 1000));
                     continue;
                 }
 
@@ -228,8 +231,6 @@
                         progressText.textContent = `${totalSuccess} / ${totalGoal} trades sent`;
                     }
 
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
                     try {
                         tradeResult = await window.SendAllTradeSender.sendSingleTrade(opportunity, abortController.signal, shouldStopCheck, onStatusUpdate);
                     } catch (error) {
@@ -245,18 +246,76 @@
                 if (tradeResult && tradeResult.success) {
                     progressTracker.recordSuccess(tradeId);
                     successCount++;
+                    
+                    const sentTradeKey = `${String(opportunity.id)}-${String(opportunity.targetUserId)}`;
+                    if (!window.sentTrades) {
+                        const stored = Storage.getAccount('sentTrades', []);
+                        window.sentTrades = new Set(stored.map(key => String(key)));
+                    }
+                    if (!window.sentTrades.has(sentTradeKey)) {
+                        window.sentTrades.add(sentTradeKey);
+                        Storage.setAccount('sentTrades', Array.from(window.sentTrades).map(key => String(key)));
+                        Storage.flush();
+                    }
+                    
+                    window.currentOpportunities = (window.currentOpportunities || []).filter(
+                        opp => !(String(opp.id) === String(opportunity.id) && String(opp.targetUserId) === String(opportunity.targetUserId))
+                    );
+                    window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                        opp => !(String(opp.id) === String(opportunity.id) && String(opp.targetUserId) === String(opportunity.targetUserId))
+                    );
+                    
                     const totalSuccess = progressTracker.getTotalSuccess();
                     const totalGoal = progressTracker.getTotalGoal();
-                    const opportunitiesToShow = isAllTrades ? opportunitiesToSend : (currentIndex < opportunitiesToSend.length ? [opportunitiesToSend[currentIndex]] : []);
+                    const opportunitiesToShow = isAllTrades ? opportunitiesToSend.filter(opp => {
+                        const key = `${String(opp.id)}-${String(opp.targetUserId)}`;
+                        return !window.sentTrades.has(key);
+                    }) : (currentIndex < opportunitiesToSend.length ? [opportunitiesToSend[currentIndex]] : []);
                     window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
                     
                     if (progressTracker.allGoalsReached()) {
                         break;
                     }
                 } else {
-                    failedCount++;
+                    if (tradeResult && tradeResult.privacyRestricted) {
+                        const userId = opportunity.targetUserId;
+                        if (!window.privacyRestrictedUsers) {
+                            const stored = Storage.getAccount('privacyRestrictedUsers', []);
+                            window.privacyRestrictedUsers = new Set(stored.map(id => String(id)));
+                        }
+                        window.privacyRestrictedUsers.add(String(userId));
+                        Storage.setAccount('privacyRestrictedUsers', Array.from(window.privacyRestrictedUsers).map(id => String(id)));
+                        Storage.flush();
+                        
+                        window.currentOpportunities = (window.currentOpportunities || []).filter(
+                            opp => String(opp.targetUserId) !== String(userId)
+                        );
+                        window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                            opp => String(opp.targetUserId) !== String(userId)
+                        );
+                    } else {
+                        failedCount++;
+                    }
+                    
                     const totalSuccess = progressTracker.getTotalSuccess();
                     const totalGoal = progressTracker.getTotalGoal();
+                    
+                    if (!window.sentTrades) {
+                        const stored = Storage.getAccount('sentTrades', []);
+                        window.sentTrades = new Set(stored.map(key => String(key)));
+                    }
+                    
+                    if (!window.privacyRestrictedUsers) {
+                        const stored = Storage.getAccount('privacyRestrictedUsers', []);
+                        window.privacyRestrictedUsers = new Set(stored.map(id => String(id)));
+                    }
+                    
+                    const opportunitiesToShow = isAllTrades ? opportunitiesToSend.filter(opp => {
+                        const key = `${String(opp.id)}-${String(opp.targetUserId)}`;
+                        const isSent = window.sentTrades.has(key);
+                        const isRestricted = window.privacyRestrictedUsers.has(String(opp.targetUserId));
+                        return !isSent && !isRestricted;
+                    }) : (currentIndex < opportunitiesToSend.length ? [opportunitiesToSend[currentIndex]] : []);
                     window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
                 }
 
@@ -276,7 +335,27 @@
                 if (!stopWasPressed) {
                     const totalSuccess = progressTracker.getTotalSuccess() || successCount;
                     const totalGoal = progressTracker.getTotalGoal() || opportunitiesToSend.length;
-                    const opportunitiesToShow = isAllTrades ? opportunitiesToSend : (opportunitiesToSend.length > 0 ? [opportunitiesToSend[opportunitiesToSend.length - 1]] : []);
+                    
+                    if (!window.sentTrades) {
+                        const stored = Storage.getAccount('sentTrades', []);
+                        window.sentTrades = new Set(stored.map(key => String(key)));
+                    }
+                    
+                    const remainingOpportunities = opportunitiesToSend.filter(opp => {
+                        const key = `${String(opp.id)}-${String(opp.targetUserId)}`;
+                        return !window.sentTrades.has(key);
+                    });
+                    
+                    window.currentOpportunities = (window.currentOpportunities || []).filter(opp => {
+                        const key = `${String(opp.id)}-${String(opp.targetUserId)}`;
+                        return !window.sentTrades.has(key);
+                    });
+                    window.filteredOpportunities = (window.filteredOpportunities || []).filter(opp => {
+                        const key = `${String(opp.id)}-${String(opp.targetUserId)}`;
+                        return !window.sentTrades.has(key);
+                    });
+                    
+                    const opportunitiesToShow = isAllTrades ? remainingOpportunities : (opportunitiesToSend.length > 0 ? [opportunitiesToSend[opportunitiesToSend.length - 1]] : []);
                     window.SendAllProgressDialog.update(totalSuccess, totalGoal, opportunitiesToShow, failedCount, isAllTrades);
 
                     setTimeout(() => {
@@ -286,6 +365,17 @@
 
                         if (window.extensionAlert) {
                             window.extensionAlert('Send All Trades Complete', message, 'info');
+                        }
+                        
+                        if (window.Pagination) {
+                            window.Pagination.setCurrentPage(1);
+                            window.Pagination.displayCurrentPage();
+                        }
+                        if (window.updateTotalUsersInfo) {
+                            window.updateTotalUsersInfo();
+                        }
+                        if (window.updateTradeFilterBar) {
+                            window.updateTradeFilterBar();
                         }
                     }, 1000);
                 }
@@ -304,7 +394,8 @@
 
     window.SendAllTrades = {
         sendAllTrades: sendAllTrades,
-        setupSendAllTradesButton: setupSendAllTradesButton
+        setupSendAllTradesButton: setupSendAllTradesButton,
+        isSendingAllTrades: getIsSendingAllTrades
     };
 
     window.setupSendAllTradesButton = setupSendAllTradesButton;

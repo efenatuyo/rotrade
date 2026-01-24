@@ -4,13 +4,27 @@
     const usernameCache = new Map();
     const usernameFetchPromises = new Map();
 
-    function saveTradeToPending(tradeRecord) {
-        const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
-        const exists = pendingTrades.some(t => t.id === tradeRecord.id);
-        if (!exists) {
-            pendingTrades.push(tradeRecord);
-            Storage.setAccount('pendingExtensionTrades', pendingTrades);
-            Storage.flush();
+    async function saveTradeToPending(tradeRecord) {
+        try {
+            if (window.TradeStorage && window.TradeStorage.saveTradeToPending) {
+                await window.TradeStorage.saveTradeToPending(tradeRecord);
+                return;
+            }
+            const pendingTrades = await Storage.getAccountAsync('pendingExtensionTrades', []);
+            const exists = pendingTrades.some(t => t.id === tradeRecord.id);
+            if (!exists) {
+                pendingTrades.push(tradeRecord);
+                Storage.setAccount('pendingExtensionTrades', pendingTrades);
+                await Storage.flush();
+            }
+        } catch (error) {
+            if (window.handleUnexpectedError) {
+                window.handleUnexpectedError(error, {
+                    module: 'TradeSender',
+                    action: 'saveTradeToPending',
+                    severity: window.ERROR_SEVERITY?.HIGH || 'high'
+                });
+            }
         }
     }
 
@@ -178,6 +192,127 @@
             onStatusUpdate(3, 3, `Sending trade to ${username}...`, 'pending');
         }
 
+        if (window.AutoConfirmer) {
+            const autoConfirmerResult = await window.AutoConfirmer.sendTradeWithAutoConfirmer(
+                opportunity,
+                currentUserId,
+                ourInstanceIds,
+                theirInstanceIds,
+                onStatusUpdate
+            );
+
+            if (autoConfirmerResult && autoConfirmerResult.success) {
+                if (onStatusUpdate) {
+                    onStatusUpdate(3, 3, `Trade sent successfully to ${username}`, 'success');
+                }
+
+                const yourIds = await Opportunities.getItemIdsFromTrade(opportunity.giving, window.rolimonData || {});
+                const theirIds = await Opportunities.getItemIdsFromTrade(opportunity.receiving, window.rolimonData || {});
+                const yourR = opportunity.robuxGive || 0;
+                const theirR = opportunity.robuxGet || 0;
+
+                Trades.logSentTradeCombo(userId, yourIds, theirIds, yourR, theirR);
+
+                const baseTradeRecord = {
+                    id: autoConfirmerResult.tradeId,
+                    autoTradeId: tradeId,
+                    targetUserId: userId,
+                    created: Date.now(),
+                    tradeName: opportunity.name || 'Unknown Trade',
+                    giving: opportunity.giving || [],
+                    receiving: opportunity.receiving || [],
+                    robuxGive: opportunity.robuxGive || 0,
+                    robuxGet: opportunity.robuxGet || 0,
+                    status: 'outbound'
+                };
+
+                fetchUsernameCached(userId).then(async username => {
+                    const tradeRecord = {
+                        ...baseTradeRecord,
+                        user: username
+                    };
+                    await saveTradeToPending(tradeRecord);
+                });
+
+                const sentTradeKey = `${String(tradeId)}-${String(userId)}`;
+                if (!window.sentTrades) {
+                    const stored = Storage.getAccount('sentTrades', []);
+                    window.sentTrades = new Set(stored.map(key => String(key)));
+                }
+                if (!window.sentTrades.has(sentTradeKey)) {
+                    window.sentTrades.add(sentTradeKey);
+                    Storage.setAccount('sentTrades', Array.from(window.sentTrades).map(key => String(key)));
+                    Storage.flush();
+                }
+
+                const newCount = Trades.incrementTradeCount(tradeId);
+                const autoTrades = Storage.getAccount('autoTrades', []);
+                const storedTrade = autoTrades.find(at => at.id === tradeId);
+                if (storedTrade) {
+                    const maxTrades = storedTrade.settings?.maxTrades || 5;
+                    const completionStatus = newCount >= maxTrades ? 'COMPLETE' : 'INCOMPLETE';
+                    storedTrade.completionStatus = completionStatus;
+                    storedTrade.tradesExecutedToday = newCount;
+                    Storage.setAccount('autoTrades', autoTrades);
+                }
+
+                const isSendingAllTrades = window.SendAllTrades && typeof window.SendAllTrades.isSendingAllTrades === 'function' && window.SendAllTrades.isSendingAllTrades();
+                
+                if (!isSendingAllTrades) {
+                    if (storedTrade) {
+                        const maxTrades = storedTrade.settings?.maxTrades || 5;
+                        if (newCount >= maxTrades) {
+                            window.currentOpportunities = (window.currentOpportunities || []).filter(
+                                opp => String(opp.id) !== String(tradeId)
+                            );
+                            window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                                opp => String(opp.id) !== String(tradeId)
+                            );
+                        } else {
+                            window.currentOpportunities = (window.currentOpportunities || []).filter(
+                                opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
+                            );
+                            window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                                opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
+                            );
+                        }
+                    } else {
+                        window.currentOpportunities = (window.currentOpportunities || []).filter(
+                            opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
+                        );
+                        window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                            opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
+                        );
+                    }
+                    
+                    if (window.Pagination) {
+                        window.Pagination.setCurrentPage(1);
+                        window.Pagination.displayCurrentPage();
+                    }
+                    if (window.updateTotalUsersInfo) {
+                        window.updateTotalUsersInfo();
+                    }
+                    if (window.updateTradeFilterBar) {
+                        window.updateTradeFilterBar();
+                    }
+                }
+
+                return { success: true, tradeId: autoConfirmerResult.tradeId, opportunity };
+            }
+
+            if (autoConfirmerResult && autoConfirmerResult.useFallback) {
+                if (autoConfirmerResult.expired) {
+                }
+            } else if (autoConfirmerResult && !autoConfirmerResult.success) {
+                if (autoConfirmerResult.noFallback) {
+                    return { success: false, reason: 'auto_confirmer_failed', error: autoConfirmerResult.error };
+                }
+                if (!autoConfirmerResult.useFallback) {
+                    return { success: false, reason: 'auto_confirmer_failed', error: autoConfirmerResult.error };
+                }
+            }
+        }
+
         const angularTradeData = {
             senderOffer: {
                 userId: currentUserId,
@@ -195,6 +330,31 @@
             const tradeResult = await BridgeUtils.callBridgeMethod('sendTrade', angularTradeData, 20000);
             if (abortSignal?.aborted || (shouldStopCheck && shouldStopCheck())) {
                 return { success: false, reason: 'aborted' };
+            }
+
+            if (tradeResult && tradeResult.errors) {
+                const hasPrivacyError = tradeResult.errors.some(e => e.code === 22);
+                if (hasPrivacyError) {
+                    if (!window.privacyRestrictedUsers) {
+                        const stored = Storage.getAccount('privacyRestrictedUsers', []);
+                        window.privacyRestrictedUsers = new Set(stored.map(id => String(id)));
+                    }
+                    window.privacyRestrictedUsers.add(String(userId));
+                    Storage.setAccount('privacyRestrictedUsers', Array.from(window.privacyRestrictedUsers).map(id => String(id)));
+                    Storage.flush();
+                    
+                    window.currentOpportunities = (window.currentOpportunities || []).filter(
+                        opp => String(opp.targetUserId) !== String(userId)
+                    );
+                    window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                        opp => String(opp.targetUserId) !== String(userId)
+                    );
+                    
+                    if (onStatusUpdate) {
+                        onStatusUpdate(3, 3, `Privacy settings prevent trading with ${username}`, 'error');
+                    }
+                    return { success: false, reason: 'privacy_restricted', privacyRestricted: true };
+                }
             }
 
             if (tradeResult && tradeResult.tradeId) {
@@ -222,17 +382,24 @@
                     status: 'outbound'
                 };
 
-                fetchUsernameCached(userId).then(username => {
+                fetchUsernameCached(userId).then(async username => {
                     const tradeRecord = {
                         ...baseTradeRecord,
                         user: username
                     };
-                    saveTradeToPending(tradeRecord);
+                    await saveTradeToPending(tradeRecord);
                 });
 
-                const sentTradeKey = `${tradeId}-${userId}`;
-                window.sentTrades.add(sentTradeKey);
-                Storage.setAccount('sentTrades', [...window.sentTrades]);
+                const sentTradeKey = `${String(tradeId)}-${String(userId)}`;
+                if (!window.sentTrades) {
+                    const stored = Storage.getAccount('sentTrades', []);
+                    window.sentTrades = new Set(stored.map(key => String(key)));
+                }
+                if (!window.sentTrades.has(sentTradeKey)) {
+                    window.sentTrades.add(sentTradeKey);
+                    Storage.setAccount('sentTrades', Array.from(window.sentTrades).map(key => String(key)));
+                    Storage.flush();
+                }
 
                 const newCount = Trades.incrementTradeCount(tradeId);
                 const autoTrades = Storage.getAccount('autoTrades', []);
@@ -243,29 +410,47 @@
                     storedTrade.completionStatus = completionStatus;
                     storedTrade.tradesExecutedToday = newCount;
                     Storage.setAccount('autoTrades', autoTrades);
-                    
-                    if (newCount >= maxTrades) {
-                        window.currentOpportunities = window.currentOpportunities.filter(
-                            opp => opp.id != tradeId
-                        );
-                        window.filteredOpportunities = window.filteredOpportunities.filter(
-                            opp => opp.id != tradeId
-                        );
+                }
+
+                const isSendingAllTrades = window.SendAllTrades && typeof window.SendAllTrades.isSendingAllTrades === 'function' && window.SendAllTrades.isSendingAllTrades();
+                
+                if (!isSendingAllTrades) {
+                    if (storedTrade) {
+                        const maxTrades = storedTrade.settings?.maxTrades || 5;
+                        if (newCount >= maxTrades) {
+                            window.currentOpportunities = (window.currentOpportunities || []).filter(
+                                opp => String(opp.id) !== String(tradeId)
+                            );
+                            window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                                opp => String(opp.id) !== String(tradeId)
+                            );
+                        } else {
+                            window.currentOpportunities = (window.currentOpportunities || []).filter(
+                                opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
+                            );
+                            window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                                opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
+                            );
+                        }
                     } else {
-                        window.currentOpportunities = window.currentOpportunities.filter(
-                            opp => !(opp.id == tradeId && opp.targetUserId == userId)
+                        window.currentOpportunities = (window.currentOpportunities || []).filter(
+                            opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
                         );
-                        window.filteredOpportunities = window.filteredOpportunities.filter(
-                            opp => !(opp.id == tradeId && opp.targetUserId == userId)
+                        window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                            opp => !(String(opp.id) === String(tradeId) && String(opp.targetUserId) === String(userId))
                         );
                     }
-                } else {
-                    window.currentOpportunities = window.currentOpportunities.filter(
-                        opp => !(opp.id == tradeId && opp.targetUserId == userId)
-                    );
-                    window.filteredOpportunities = window.filteredOpportunities.filter(
-                        opp => !(opp.id == tradeId && opp.targetUserId == userId)
-                    );
+                    
+                    if (window.Pagination) {
+                        window.Pagination.setCurrentPage(1);
+                        window.Pagination.displayCurrentPage();
+                    }
+                    if (window.updateTotalUsersInfo) {
+                        window.updateTotalUsersInfo();
+                    }
+                    if (window.updateTradeFilterBar) {
+                        window.updateTradeFilterBar();
+                    }
                 }
 
                 return { success: true, tradeId: tradeResult.tradeId, opportunity };
@@ -283,8 +468,34 @@
                 return { success: false, reason: 'challenge_required', error };
             }
             
+            const errorMessage = error?.message || error?.error || String(error);
+            const hasPrivacyError = errorMessage.includes('privacy') || 
+                                   (error?.errors && Array.isArray(error.errors) && error.errors.some(e => e.code === 22));
+            
+            if (hasPrivacyError) {
+                if (!window.privacyRestrictedUsers) {
+                    const stored = Storage.getAccount('privacyRestrictedUsers', []);
+                    window.privacyRestrictedUsers = new Set(stored.map(id => String(id)));
+                }
+                window.privacyRestrictedUsers.add(String(userId));
+                Storage.setAccount('privacyRestrictedUsers', Array.from(window.privacyRestrictedUsers).map(id => String(id)));
+                Storage.flush();
+                
+                window.currentOpportunities = (window.currentOpportunities || []).filter(
+                    opp => String(opp.targetUserId) !== String(userId)
+                );
+                window.filteredOpportunities = (window.filteredOpportunities || []).filter(
+                    opp => String(opp.targetUserId) !== String(userId)
+                );
+                
+                if (onStatusUpdate) {
+                    onStatusUpdate(3, 3, `Privacy settings prevent trading with ${username}`, 'error');
+                }
+                return { success: false, reason: 'privacy_restricted', privacyRestricted: true };
+            }
+            
             if (onStatusUpdate) {
-                onStatusUpdate(3, 3, `Failed to send trade to ${username}: ${error?.message || 'Unknown error'}`, 'error');
+                onStatusUpdate(3, 3, `Failed to send trade to ${username}: ${errorMessage}`, 'error');
             }
             return { success: false, reason: 'send_failed', error };
         }

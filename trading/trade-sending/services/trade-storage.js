@@ -3,14 +3,14 @@
 
     const Storage = window.ModuleRegistry?.getSafe('Storage') || window.Storage;
 
-    function saveTradeToPending(tradeRecord) {
+    async function saveTradeToPending(tradeRecord) {
         try {
-            const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
+            const pendingTrades = await Storage.getAccountAsync('pendingExtensionTrades', []);
             const exists = pendingTrades.some(t => t.id === tradeRecord.id);
             if (!exists) {
                 pendingTrades.push(tradeRecord);
                 Storage.setAccount('pendingExtensionTrades', pendingTrades);
-                Storage.flush();
+                await Storage.flush();
             }
         } catch (error) {
             if (window.handleUnexpectedError) {
@@ -65,8 +65,10 @@
                 saveTradeToPending(tradeRecord);
             }
 
-            const sentTradeKey = `${tradeId}-${userId}`;
-            if (!window.sentTrades) window.sentTrades = new Set();
+            const sentTradeKey = `${String(tradeId)}-${String(userId)}`;
+            if (!window.sentTrades) {
+                window.sentTrades = new Set(Storage.getAccount('sentTrades', []));
+            }
             window.sentTrades.add(sentTradeKey);
 
             const newCount = Trades.incrementTradeCount(tradeId);

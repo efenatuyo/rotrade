@@ -16,13 +16,33 @@
                 e.target.classList.add('active');
                 e.target.style.setProperty('border-bottom', '3px solid white', 'important');
 
-                if (tradeName === 'all') {
-                    window.filteredOpportunities = [...window.currentOpportunities];
-                } else {
-                    window.filteredOpportunities = window.currentOpportunities.filter(
-                        opp => opp.id == tradeId
-                    );
+                const storedSentTrades = Storage.getAccount('sentTrades', []);
+                if (storedSentTrades && Array.isArray(storedSentTrades)) {
+                    window.sentTrades = new Set(storedSentTrades.map(key => String(key)));
+                } else if (!window.sentTrades) {
+                    window.sentTrades = new Set();
                 }
+
+                const storedPrivacyRestricted = Storage.getAccount('privacyRestrictedUsers', []);
+                if (storedPrivacyRestricted && Array.isArray(storedPrivacyRestricted)) {
+                    window.privacyRestrictedUsers = new Set(storedPrivacyRestricted.map(id => String(id)));
+                } else if (!window.privacyRestrictedUsers) {
+                    window.privacyRestrictedUsers = new Set();
+                }
+
+                let filtered = window.currentOpportunities;
+                if (tradeName !== 'all') {
+                    filtered = window.currentOpportunities.filter(opp => opp.id == tradeId);
+                }
+
+                filtered = filtered.filter(opp => {
+                    if (!opp || !opp.tradeKey) return true;
+                    const isSent = window.sentTrades.has(opp.tradeKey);
+                    const isRestricted = window.privacyRestrictedUsers.has(String(opp.targetUserId));
+                    return !isSent && !isRestricted;
+                });
+
+                window.filteredOpportunities = filtered;
 
                 Pagination.setCurrentPage(1);
                 Pagination.displayCurrentPage();

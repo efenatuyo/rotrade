@@ -17,10 +17,16 @@
         while (notificationQueue.length > 0) {
             const { trade, status } = notificationQueue.shift();
             
-            if (TradeNotifications && TradeNotifications.showTradeNotification) {
-                TradeNotifications.showTradeNotification(trade, status);
-            } else if (window.showTradeNotification) {
-                window.showTradeNotification(trade, status);
+            try {
+                if (TradeNotifications && TradeNotifications.showTradeNotification) {
+                    TradeNotifications.showTradeNotification(trade, status);
+                } else if (window.showTradeNotification) {
+                    window.showTradeNotification(trade, status);
+                } else if (window.TradeStatusNotifications && window.TradeStatusNotifications.showTradeNotification) {
+                    window.TradeStatusNotifications.showTradeNotification(trade, status);
+                }
+            } catch (error) {
+                // Silent error handling
             }
 
             if (notificationQueue.length > 0) {

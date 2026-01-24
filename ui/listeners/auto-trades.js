@@ -37,7 +37,8 @@
                     document.getElementById('outbound-section').style.display = 'block';
                     const container = document.getElementById('outbound-container');
                     if (container) container.innerHTML = '';
-                    Storage.set('outbound-containerCurrentPage', '1');
+                    if (!window._paginationMemory) window._paginationMemory = {};
+                    window._paginationMemory['outbound-containerCurrentPage'] = '1';
                     (async () => {
                         if (window.validateAutoTradesInventory) {
                             await window.validateAutoTradesInventory();
@@ -54,19 +55,22 @@
                     document.getElementById('expired-section').style.display = 'block';
                     const container = document.getElementById('expired-container');
                     if (container) container.innerHTML = '';
-                    Storage.set('expired-containerCurrentPage', '1');
+                    if (!window._paginationMemory) window._paginationMemory = {};
+                    window._paginationMemory['expired-containerCurrentPage'] = '1';
                     if (window.loadExpiredTrades) window.loadExpiredTrades();
                 } else if (filter === 'countered') {
                     document.getElementById('countered-section').style.display = 'block';
                     const container = document.getElementById('countered-container');
                     if (container) container.innerHTML = '';
-                    Storage.set('countered-containerCurrentPage', '1');
+                    if (!window._paginationMemory) window._paginationMemory = {};
+                    window._paginationMemory['countered-containerCurrentPage'] = '1';
                     if (window.loadCounteredTrades) window.loadCounteredTrades();
                 } else if (filter === 'completed') {
                     document.getElementById('completed-section').style.display = 'block';
                     const container = document.getElementById('completed-container');
                     if (container) container.innerHTML = '';
-                    Storage.set('completed-containerCurrentPage', '1');
+                    if (!window._paginationMemory) window._paginationMemory = {};
+                    window._paginationMemory['completed-containerCurrentPage'] = '1';
                     if (window.loadCompletedTrades) window.loadCompletedTrades();
                 }
             });

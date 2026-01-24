@@ -5,13 +5,46 @@
         const defaults = {
             maxOwnerDays: 100000000,
             lastOnlineDays: 3,
-            tradeMemoryDays: 7
+            tradeMemoryDays: 7,
+            autoConfirmerEnabled: false
         };
         return { ...defaults, ...Storage.get('rotradeSettings', {}) };
     }
 
     function saveSettings(settings) {
         Storage.set('rotradeSettings', settings);
+    }
+
+    async function getAutoConfirmerSettings(userId) {
+        if (!userId) {
+            userId = API.getCurrentUserIdSync ? API.getCurrentUserIdSync() : (await API.getCurrentUserId());
+        }
+        if (!userId) {
+            return { enabled: false, hasSecret: false };
+        }
+        
+        const globalSettings = getSettings();
+        const hasSecret = await Authenticator.retrieveSecret(userId).then(() => true).catch(() => false);
+        
+        return {
+            enabled: globalSettings.autoConfirmerEnabled || false,
+            hasSecret: hasSecret
+        };
+    }
+
+    function setAutoConfirmerEnabled(enabled) {
+        const settings = getSettings();
+        settings.autoConfirmerEnabled = enabled;
+        saveSettings(settings);
+    }
+
+    async function clearAutoConfirmerSecret(userId) {
+        if (!userId) {
+            userId = API.getCurrentUserIdSync ? API.getCurrentUserIdSync() : (await API.getCurrentUserId());
+        }
+        if (userId) {
+            Authenticator.clearSecret(userId);
+        }
     }
 
     function getTodayTradeCount(tradeId) {
@@ -100,6 +133,9 @@
         saveSentTradeHistory,
         generateTradeHash,
         isTradeComboSentRecently,
-        logSentTradeCombo
+        logSentTradeCombo,
+        getAutoConfirmerSettings,
+        setAutoConfirmerEnabled,
+        clearAutoConfirmerSecret
     };
 })();

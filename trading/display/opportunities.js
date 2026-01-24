@@ -10,12 +10,13 @@
         if (opportunities.length === 0) {
             if (window.filteredOpportunities && window.filteredOpportunities.length > 0) {
                 const totalPages = Pagination.getTotalPages();
-                const currentPage = Pagination.getCurrentPage();
-                if (currentPage > 1 && currentPage <= totalPages) {
-                    Pagination.setCurrentPage(currentPage - 1);
-                    Pagination.displayCurrentPage();
-                    return;
-                }
+                Pagination.getCurrentPage().then(currentPage => {
+                    if (currentPage > 1 && currentPage <= totalPages) {
+                        Pagination.setCurrentPage(currentPage - 1);
+                        Pagination.displayCurrentPage().catch(() => {});
+                    }
+                }).catch(() => {});
+                return;
             }
             
             let autoTrades = [];
@@ -49,15 +50,19 @@
                 }
             }
 
-            const allTradesComplete = autoTrades.every(trade => {
-                const maxTrades = trade.settings?.maxTrades || 5;
-                const tradesExecutedToday = Trades.getTodayTradeCount(trade.id);
-                return tradesExecutedToday >= maxTrades;
-            });
+            const isSendingAllTrades = window.SendAllTrades && typeof window.SendAllTrades.isSendingAllTrades === 'function' && window.SendAllTrades.isSendingAllTrades();
+            
+            if (!isSendingAllTrades) {
+                const allTradesComplete = autoTrades.every(trade => {
+                    const maxTrades = trade.settings?.maxTrades || 5;
+                    const tradesExecutedToday = Trades.getTodayTradeCount(trade.id);
+                    return tradesExecutedToday >= maxTrades;
+                });
 
-            if (allTradesComplete) {
-                grid.innerHTML = '<div class="empty-message">All trades completed for today!</div>';
-                return;
+                if (allTradesComplete) {
+                    grid.innerHTML = '<div class="empty-message">All trades completed for today!</div>';
+                    return;
+                }
             }
 
             grid.innerHTML = '<div class="empty-message">No trading opportunities found.</div>';
@@ -76,7 +81,7 @@
         let tradesToShow = opportunities;
         
         if (opportunities === window.filteredOpportunities) {
-            const currentPage = Pagination.getCurrentPage();
+            const currentPage = await Pagination.getCurrentPage();
             const tradesPerPage = Pagination.getTradesPerPage();
             const startIndex = (currentPage - 1) * tradesPerPage;
             const endIndex = startIndex + tradesPerPage;
@@ -199,7 +204,7 @@
         if (window.setupSendTradeButtons) {
             window.setupSendTradeButtons();
         }
-        Pagination.updatePaginationControls();
+        Pagination.updatePaginationControls().catch(() => {});
     }
 
     window.TradeDisplayOpportunities = { displayTradeOpportunities };
