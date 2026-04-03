@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "RoTrade - Roblox Trading Automated",
-    "version": "1.2.10",
+    "version": "1.3.10",
     "description": "Roblox trading helper.",
     "icons": {
         "16": "assets/icon.png",
