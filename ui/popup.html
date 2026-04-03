@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RoTrade - Settings</title>
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <div class="popup-root">
+            <header class="popup-header">
+                <h1 class="popup-title">RoTrade - Settings</h1>
+                <p class="popup-logged-in" id="popup-logged-in" aria-live="polite"></p>
+                <p class="popup-hint">Open a Roblox tab to sync account-specific options.</p>
+            </header>
+            <div class="popup-scroll">
+                <section class="set-section">
+                    <h2 class="set-h2">Common owners</h2>
+                    <p class="set-desc">
+                        Parameters for finding users who own items you trade for.
+                    </p>
+                    <label class="set-label" for="maxOwnerDays">Max owner days</label>
+                    <input
+                        type="number"
+                        id="maxOwnerDays"
+                        class="set-input"
+                        min="8"
+                        max="999999999"
+                    />
+                    <small id="maxOwnerDays-error" class="set-field-error" hidden></small>
+                    <small id="maxOwnerDays-help" class="set-help"></small>
+                    <label class="set-label" for="lastOnlineDays">Last online days</label>
+                    <input type="number" id="lastOnlineDays" class="set-input" min="1" max="365" />
+                    <small id="lastOnlineDays-error" class="set-field-error" hidden></small>
+                    <small id="lastOnlineDays-help" class="set-help"></small>
+                </section>
+                <section class="set-section">
+                    <h2 class="set-h2">Trade history</h2>
+                    <p class="set-desc">How long sent trades are remembered.</p>
+                    <label class="set-label" for="tradeMemoryDays">Trade memory (days)</label>
+                    <input type="number" id="tradeMemoryDays" class="set-input" min="1" max="30" />
+                    <small id="tradeMemoryDays-error" class="set-field-error" hidden></small>
+                    <small id="tradeMemoryDays-help" class="set-help"></small>
+                    <button type="button" class="btn btn-danger" id="clear-trade-history">
+                        Clear sent trade history
+                    </button>
+                </section>
+                <section class="set-section">
+                    <h2 class="set-h2">Robux → USD</h2>
+                    <p class="set-desc">
+                        How many US dollars one thousand Robux is worth for estimates (trade totals,
+                        catalog USD rows, reseller listings). Default 4 is a common reference rate.
+                    </p>
+                    <label class="set-label" for="usdPer1kRobux">USD per 1,000 Robux</label>
+                    <input
+                        type="number"
+                        id="usdPer1kRobux"
+                        class="set-input"
+                        min="0.01"
+                        max="1000"
+                        step="0.01"
+                    />
+                    <small id="usdPer1kRobux-error" class="set-field-error" hidden></small>
+                    <small id="usdPer1kRobux-help" class="set-help"></small>
+                </section>
+                <section class="set-section">
+                    <h2 class="set-h2">Chart alerts</h2>
+                    <p class="set-desc">
+                        Yellow notes on trade detail use Rolimons chart data. Only applies when the
+                        relevant scan falls within the recency window.
+                    </p>
+                    <label class="set-label">
+                        <input type="checkbox" id="tradeDetailChartAlertsEnabled" />
+                        Enable chart alerts
+                    </label>
+                    <label class="set-label" for="tradeDetailChartRecencyDays"
+                        >Recency (days)</label
+                    >
+                    <input
+                        type="number"
+                        id="tradeDetailChartRecencyDays"
+                        class="set-input"
+                        min="1"
+                        max="365"
+                        step="1"
+                    />
+                    <small
+                        id="tradeDetailChartRecencyDays-error"
+                        class="set-field-error"
+                        hidden
+                    ></small>
+                    <small id="tradeDetailChartRecencyDays-help" class="set-help"></small>
+                    <label class="set-label" for="tradeDetailNewChartMinValue"
+                        >Min starting value (first chart row)</label
+                    >
+                    <input
+                        type="number"
+                        id="tradeDetailNewChartMinValue"
+                        class="set-input"
+                        min="0"
+                        max="999999999999"
+                        step="1000"
+                    />
+                    <small
+                        id="tradeDetailNewChartMinValue-error"
+                        class="set-field-error"
+                        hidden
+                    ></small>
+                    <small id="tradeDetailNewChartMinValue-help" class="set-help"></small>
+                    <label class="set-label" for="tradeDetailJumpMaxGapDays"
+                        >Max days between two scans (jump detection)</label
+                    >
+                    <input
+                        type="number"
+                        id="tradeDetailJumpMaxGapDays"
+                        class="set-input"
+                        min="0.25"
+                        max="30"
+                        step="0.25"
+                    />
+                    <small
+                        id="tradeDetailJumpMaxGapDays-error"
+                        class="set-field-error"
+                        hidden
+                    ></small>
+                    <small id="tradeDetailJumpMaxGapDays-help" class="set-help"></small>
+                    <label class="set-label" for="tradeDetailJumpMinPct"
+                        >Min value increase (%)</label
+                    >
+                    <input
+                        type="number"
+                        id="tradeDetailJumpMinPct"
+                        class="set-input"
+                        min="1"
+                        max="50000"
+                        step="1"
+                    />
+                    <small id="tradeDetailJumpMinPct-error" class="set-field-error" hidden></small>
+                    <small id="tradeDetailJumpMinPct-help" class="set-help"></small>
+                </section>
+                <section class="set-section">
+                    <h2 class="set-h2">Auto 2FA</h2>
+                    <p class="set-desc">
+                        Store your authenticator secret for auto-confirm when sending trades
+                        (encrypted).
+                    </p>
+                    <div class="twofa-box" id="twofa-secret-status">
+                        <div class="twofa-row">
+                            <div class="twofa-text">
+                                <div class="twofa-title">2FA secret</div>
+                                <div id="twofa-secret-status-text" class="twofa-line"></div>
+                                <div id="twofa-secret-status-message" class="twofa-msg"></div>
+                            </div>
+                            <div class="twofa-actions">
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    id="set-twofa-secret"
+                                >
+                                    Set secret
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-danger"
+                                    id="reset-twofa-secret"
+                                    style="display: none"
+                                >
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <div class="set-actions">
+                    <button type="button" class="btn btn-primary" id="save-settings">Save</button>
+                    <button type="button" class="btn btn-muted" id="reset-settings">
+                        Defaults
+                    </button>
+                </div>
+                <div class="popup-footer">
+                    <button type="button" class="btn btn-link" id="open-auto-trades">
+                        Open auto-trades
+                    </button>
+                </div>
+            </div>
+        </div>
+        <script src="../core/storage.js"></script>
+        <script src="../core/utils/authenticator.js"></script>
+        <script src="dialogs-2fa.js"></script>
+        <script src="popup.js"></script>
+    </body>
+</html>
