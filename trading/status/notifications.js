@@ -1,6 +1,42 @@
 (function () {
     'use strict';
     const Storage = window.ModuleRegistry?.getSafe('Storage') || window.Storage;
+    async function areNotificationsEnabled() {
+        try {
+            if (!chrome || !chrome.storage || !chrome.storage.local) {
+                return true;
+            }
+            const r = await chrome.storage.local.get(['rotradeSettings']);
+            const s = (r && r.rotradeSettings) || {};
+            return s.notificationsEnabled !== false;
+        } catch {
+            return true;
+        }
+    }
+    async function areDesktopNotificationsEnabled() {
+        try {
+            if (!chrome || !chrome.storage || !chrome.storage.local) {
+                return false;
+            }
+            const r = await chrome.storage.local.get(['rotradeSettings']);
+            const s = (r && r.rotradeSettings) || {};
+            return s.desktopNotificationsEnabled === true;
+        } catch {
+            return false;
+        }
+    }
+    function fireDesktopNotification(title, message) {
+        try {
+            if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+                return;
+            }
+            chrome.runtime.sendMessage({
+                action: 'showDesktopNotification',
+                title: title,
+                message: message,
+            });
+        } catch {}
+    }
     function playNotificationSound() {
         try {
             if (!chrome || !chrome.runtime || !chrome.runtime.getURL) {
@@ -153,6 +189,9 @@
         if (!tradeId) {
             return;
         }
+        if (!(await areNotificationsEnabled())) {
+            return;
+        }
         if (hasBeenNotified(tradeId, status)) {
             return;
         }
@@ -182,6 +221,9 @@
         markAsNotified(tradeId, status);
         const { message: message, type: type } = getNotificationConfig(trade, status);
         playNotificationSound();
+        if (await areDesktopNotificationsEnabled()) {
+            fireDesktopNotification('RoTrade — Trade status', message);
+        }
         const notification = createNotificationElement(message, type);
         notification.style.cursor = 'pointer';
         notification.title = 'Click to dismiss';

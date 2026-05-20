@@ -6,6 +6,7 @@
     let rolimonItemsCache = null;
     let rolimonItemsPromise = null;
     const valueByUserId = new Map();
+    const rapByUserId = new Map();
     const inflightByUserId = new Map();
     function parseProfileUserId() {
         const p = (window.location.pathname || '').replace(/^\/([a-z]{2})\//, '/');
@@ -31,7 +32,7 @@
         }
         return n;
     }
-    function totalValueFromScannedPlayerAssets(scanned, rolimonData) {
+    function totalMetricFromScannedPlayerAssets(scanned, rolimonData, metricIndex) {
         let total = 0;
         if (!scanned || typeof scanned !== 'object' || !rolimonData) {
             return 0;
@@ -55,11 +56,44 @@
                 rolimonData[assetId] ||
                 rolimonData[String(assetId)] ||
                 rolimonData[Number(assetId)];
-            if (rolimonItem && Array.isArray(rolimonItem) && rolimonItem.length > 4) {
-                total += (Number(rolimonItem[4]) || 0) * count;
+            if (rolimonItem && Array.isArray(rolimonItem) && rolimonItem.length > metricIndex) {
+                total += (Number(rolimonItem[metricIndex]) || 0) * count;
             }
         }
         return Math.round(total);
+    }
+    function totalValueFromScannedPlayerAssets(scanned, rolimonData) {
+        return totalMetricFromScannedPlayerAssets(scanned, rolimonData, 4);
+    }
+    function totalRapFromScannedPlayerAssets(scanned, rolimonData) {
+        return totalMetricFromScannedPlayerAssets(scanned, rolimonData, 2);
+    }
+    let currentMetric = 'value';
+    let metricInitialized = false;
+    function refreshMetricFromStorage() {
+        try {
+            chrome.storage.local.get(['rotradeSettings'], function (r) {
+                if (chrome.runtime.lastError) {
+                    metricInitialized = true;
+                    return;
+                }
+                const s = (r && r.rotradeSettings) || {};
+                const next = s.profileMetric === 'rap' ? 'rap' : 'value';
+                const changed = next !== currentMetric;
+                currentMetric = next;
+                metricInitialized = true;
+                if (changed) {
+                    const row = findTargetRow();
+                    if (row) {
+                        const a = row.querySelector('a[' + VALUE_ATTR + '="1"]');
+                        if (a) a.remove();
+                    }
+                    scheduleRender();
+                }
+            });
+        } catch {
+            metricInitialized = true;
+        }
     }
     function formatCompactInventoryValue(num) {
         const n = Math.round(Number(num));
@@ -216,17 +250,21 @@
         if (span) {
             span.textContent = text;
         }
+        a.href = 'https://www.rolimons.com/player/' + encodeURIComponent(userId);
         a.setAttribute('aria-disabled', isLoading ? 'true' : 'false');
         if (isLoading) {
-            a.removeAttribute('href');
             a.classList.add('opacity-[0.5]');
         } else {
-            a.href = 'https://www.rolimons.com/player/' + encodeURIComponent(userId);
             a.classList.remove('opacity-[0.5]');
         }
         return a;
     }
+    const privateByUserId = new Set();
+    const failedByUserId = new Set();
     function render() {
+        if (!metricInitialized) {
+            return;
+        }
         const userId = parseProfileUserId();
         if (!userId) {
             return;
@@ -235,38 +273,67 @@
         if (!row) {
             return;
         }
-        const cached = valueByUserId.get(userId);
+        const metric = currentMetric;
+        const label = metric === 'rap' ? 'RAP' : 'Value';
+        const cacheMap = metric === 'rap' ? rapByUserId : valueByUserId;
+        const cached = cacheMap.get(userId);
         if (cached != null) {
-            ensureValueLink(row, userId, formatCompactInventoryValue(cached) + ' Value', false);
+            const a = ensureValueLink(
+                row,
+                userId,
+                formatCompactInventoryValue(cached) + ' ' + label,
+                false
+            );
+            if (a) {
+                a.removeAttribute('title');
+                a.removeAttribute('aria-label');
+            }
             return;
         }
-        ensureValueLink(row, userId, '0 Value', true);
+        if (privateByUserId.has(userId)) {
+            const a = ensureValueLink(row, userId, 'Private', false);
+            if (a) {
+                const msg =
+                    "This user's inventory is private so " +
+                    label.toLowerCase() +
+                    ' cannot be detected.';
+                a.setAttribute('title', msg);
+                a.setAttribute('aria-label', msg);
+            }
+            return;
+        }
+        if (failedByUserId.has(userId)) {
+            ensureValueLink(row, userId, '0 ' + label, true);
+            return;
+        }
+        if (inflightByUserId.has(userId)) {
+            if (!row.querySelector('a[' + VALUE_ATTR + '="1"]')) {
+                ensureValueLink(row, userId, '0 ' + label, true);
+            }
+            return;
+        }
+        ensureValueLink(row, userId, '0 ' + label, true);
         Promise.all([getUserStats(userId), getRolimonItemsRaw()])
             .then(function (results) {
                 const stats = results[0];
                 const items = results[1];
-                const val = totalValueFromScannedPlayerAssets(
-                    stats && stats.scanned_player_assets,
-                    items
-                );
-                valueByUserId.set(userId, val);
-                const latestRow = findTargetRow();
-                if (!latestRow) {
+                const scanned = stats && stats.scanned_player_assets;
+                const hasScanData =
+                    scanned && typeof scanned === 'object' && Object.keys(scanned).length > 0;
+                if (!hasScanData) {
+                    privateByUserId.add(userId);
+                    scheduleRender();
                     return;
                 }
-                ensureValueLink(
-                    latestRow,
-                    userId,
-                    formatCompactInventoryValue(val) + ' Value',
-                    false
-                );
+                const value = totalValueFromScannedPlayerAssets(scanned, items);
+                const rap = totalRapFromScannedPlayerAssets(scanned, items);
+                valueByUserId.set(userId, value);
+                rapByUserId.set(userId, rap);
+                scheduleRender();
             })
             .catch(function () {
-                const latestRow = findTargetRow();
-                if (!latestRow) {
-                    return;
-                }
-                ensureValueLink(latestRow, userId, 'Value unavailable', false);
+                failedByUserId.add(userId);
+                scheduleRender();
             });
     }
     function scheduleRender() {
@@ -291,7 +358,22 @@
         });
         window.addEventListener('hashchange', scheduleRender);
         window.addEventListener('popstate', scheduleRender);
-        render();
+        if (
+            typeof chrome !== 'undefined' &&
+            chrome.storage &&
+            chrome.storage.onChanged &&
+            typeof chrome.storage.onChanged.addListener === 'function'
+        ) {
+            try {
+                chrome.storage.onChanged.addListener(function (changes, areaName) {
+                    if (areaName !== 'local' || !changes.rotradeSettings) {
+                        return;
+                    }
+                    refreshMetricFromStorage();
+                });
+            } catch {}
+        }
+        refreshMetricFromStorage();
         scheduleRender();
         if (window.Utils && typeof window.Utils.delay === 'function') {
             window.Utils.delay(500).then(scheduleRender);

@@ -4,13 +4,17 @@
         data: null,
         timestamp: 0,
         duration: 6e5,
+        inflight: null,
     };
     async function fetchRolimons() {
         const now = Date.now();
         if (rolimonsCache.data && now - rolimonsCache.timestamp < rolimonsCache.duration) {
             return Utils.ensureArray(rolimonsCache.data, []);
         }
-        return new Promise((resolve) => {
+        if (rolimonsCache.inflight) {
+            return rolimonsCache.inflight;
+        }
+        rolimonsCache.inflight = new Promise((resolve) => {
             try {
                 chrome.runtime.sendMessage(
                     {
@@ -69,7 +73,10 @@
             } catch (error) {
                 resolve(Utils.ensureArray(rolimonsCache.data, []));
             }
+        }).finally(() => {
+            rolimonsCache.inflight = null;
         });
+        return rolimonsCache.inflight;
     }
     let cachedUserId = null;
     let cachedUserIdTimestamp = 0;

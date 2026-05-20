@@ -173,7 +173,6 @@
         }
         const set2FASecretBtn = document.getElementById('set-twofa-secret');
         const reset2FASecretBtn = document.getElementById('reset-twofa-secret');
-        const autoConfirmerCheckbox = document.getElementById('autoConfirmerEnabled');
         if (set2FASecretBtn) {
             set2FASecretBtn.addEventListener('click', async () => {
                 try {

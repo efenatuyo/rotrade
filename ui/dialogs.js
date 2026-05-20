@@ -11,8 +11,17 @@
         dialog.className = 'extension-dialog';
         dialog.style.cssText = `\n            background: var(--auto-trades-bg-primary, #393b3d);\n            border: 1px solid var(--auto-trades-border, #4a4c4e);\n            border-radius: 12px;\n            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);\n            max-width: 480px;\n            width: 100%;\n            min-width: 320px;\n            padding: 0;\n            margin: 0;\n            animation: slideUp 0.3s ease-out;\n            color: var(--auto-trades-text-primary, #ffffff);\n            position: relative;\n            overflow: hidden;\n        `;
         const icon = type === 'confirm' ? '⚠️' : type === 'error' ? '❌' : 'ℹ️';
-        const iconColor = type === 'confirm' ? '#ffc107' : type === 'error' ? '#dc3545' : '#00A2FF';
-        dialog.innerHTML = `\n            <div style="padding: 28px 28px 24px; border-bottom: 1px solid var(--auto-trades-border, #4a4c4e);">\n                <div style="display: flex; align-items: flex-start; gap: 16px;">\n                    <div style="font-size: 36px; line-height: 1; flex-shrink: 0; margin-top: 2px;">${icon}</div>\n                    <div style="flex: 1; min-width: 0;">\n                        <h3 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 600; color: var(--auto-trades-text-primary, #ffffff); line-height: 1.4; letter-spacing: -0.3px;">\n                            ${title}\n                        </h3>\n                        <p style="margin: 0; font-size: 15px; line-height: 1.6; color: var(--auto-trades-text-secondary, #bdbebe); word-wrap: break-word;">\n                            ${message}\n                        </p>\n                    </div>\n                </div>\n            </div>\n            <div class="extension-dialog-buttons" style="padding: 20px 28px; display: flex; gap: 12px; justify-content: flex-end; background: var(--auto-trades-bg-secondary, #2a2d30);">\n            </div>\n        `;
+        const sHtml =
+            window.SecurityUtils && window.SecurityUtils.sanitizeHtml
+                ? window.SecurityUtils.sanitizeHtml
+                : (v) => {
+                      const d = document.createElement('div');
+                      d.textContent = String(v ?? '');
+                      return d.innerHTML;
+                  };
+        const safeTitle = sHtml(title);
+        const safeMessage = sHtml(message);
+        dialog.innerHTML = `\n            <div style="padding: 28px 28px 24px; border-bottom: 1px solid var(--auto-trades-border, #4a4c4e);">\n                <div style="display: flex; align-items: flex-start; gap: 16px;">\n                    <div style="font-size: 36px; line-height: 1; flex-shrink: 0; margin-top: 2px;">${icon}</div>\n                    <div style="flex: 1; min-width: 0;">\n                        <h3 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 600; color: var(--auto-trades-text-primary, #ffffff); line-height: 1.4; letter-spacing: -0.3px;">\n                            ${safeTitle}\n                        </h3>\n                        <p style="margin: 0; font-size: 15px; line-height: 1.6; color: var(--auto-trades-text-secondary, #bdbebe); word-wrap: break-word;">\n                            ${safeMessage}\n                        </p>\n                    </div>\n                </div>\n            </div>\n            <div class="extension-dialog-buttons" style="padding: 20px 28px; display: flex; gap: 12px; justify-content: flex-end; background: var(--auto-trades-bg-secondary, #2a2d30);">\n            </div>\n        `;
         return dialog;
     }
     function showAlert(title, message, type = 'info') {

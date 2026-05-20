@@ -4,7 +4,6 @@
     const pendingRequests = new Map();
     const cacheGeneration = {};
     const BATCH_SIZE = 100;
-    const BATCH_DELAY = 50;
     const IMG_STYLE =
         'width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block;';
     function escapeHtmlAttr(s) {

@@ -44,7 +44,7 @@
                 });
                 if (rolimonItem) {
                     const rolimonEntry = Object.entries(rolimonData).find(
-                        ([id, data]) => data === rolimonItem
+                        ([, data]) => data === rolimonItem
                     );
                     const itemId = rolimonEntry ? parseInt(rolimonEntry[0]) : null;
                     return {
@@ -67,7 +67,7 @@
                 });
                 if (rolimonItem) {
                     const rolimonEntry = Object.entries(rolimonData).find(
-                        ([id, data]) => data === rolimonItem
+                        ([, data]) => data === rolimonItem
                     );
                     const itemId = rolimonEntry ? parseInt(rolimonEntry[0]) : null;
                     return {
@@ -95,7 +95,7 @@
                 let itemId = item.id || item.itemId;
                 if (!itemId && item.name && Object.keys(rolimonData).length > 0) {
                     const itemName = (item.name || '').trim();
-                    const rolimonEntry = Object.entries(rolimonData).find(([id, data]) => {
+                    const rolimonEntry = Object.entries(rolimonData).find(([, data]) => {
                         if (!Array.isArray(data) || data.length < 5) return false;
                         const rolimonName = (data[0] || '').trim();
                         return rolimonName.toLowerCase() === itemName.toLowerCase();
@@ -301,7 +301,7 @@
                 }
             } catch (error) {}
         };
-        const results = await Promise.allSettled(
+        await Promise.allSettled(
             ownerPromises.map((promise) => promise.then(processTradeResponse).catch(() => {}))
         );
         function shuffleArray(array) {

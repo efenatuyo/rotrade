@@ -7,7 +7,6 @@
         TradeDisplaySizing: TradeDisplaySizing,
         Utils: Utils,
     } = window;
-    const tradesCache = new Map();
     const getTradesKey = (id) => id.replace('-container', '') + 'Trades';
     const storeTrades = (id, trades) => {
         window[getTradesKey(id)] = trades;

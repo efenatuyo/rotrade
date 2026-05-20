@@ -6,6 +6,7 @@
     --auto-trades-text-secondary: #bdbebe;
     --auto-trades-text-muted: #858585;
 }
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -2540,6 +2541,132 @@ body:not(.dark-theme)
 body:not(.dark-theme) #item-details .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
 body:not(.dark-theme)
     #item-details
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]) {
+    color: rgb(32, 34, 39);
+}
+
+.list-item.asset-item .item-card-caption:has(.rotrade-caption-values),
+.item-card-container .item-card-caption:has(.rotrade-caption-values),
+[data-testid="asset-card"] .item-card-caption:has(.rotrade-caption-values),
+[data-testid="collectible-item"] .item-card-caption:has(.rotrade-caption-values) {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
+ul.hlist.item-cards:has(.rotrade-caption-values) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+}
+
+ul.hlist.item-cards:has(.rotrade-caption-values) > li.list-item.item-card {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    align-items: stretch !important;
+}
+
+ul.hlist.item-cards:has(.rotrade-caption-values) > li.list-item.item-card .item-card-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: 1 1 auto !important;
+}
+
+ul.hlist.item-cards:has(.rotrade-caption-values) > li.list-item.item-card .item-card-container > .item-card-link {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: 0 0 auto !important;
+}
+
+.item-card-container .item-card-price:has(.rotrade-caption-values),
+.list-item.asset-item .item-card-price:has(.rotrade-caption-values),
+[data-testid="asset-card"] .item-card-price:has(.rotrade-caption-values),
+[data-testid="collectible-item"] .item-card-price:has(.rotrade-caption-values) {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.list-item.asset-item .rotrade-caption-values,
+.item-card-container .rotrade-caption-values,
+[data-testid="asset-card"] .rotrade-caption-values,
+[data-testid="collectible-item"] .rotrade-caption-values {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 8px;
+    width: 100%;
+    margin-top: 6px;
+    min-height: min-content;
+    box-sizing: border-box;
+    overflow: visible !important;
+}
+
+.list-item.asset-item .rotrade-caption-values .rotrade-row,
+.item-card-container .rotrade-caption-values .rotrade-row,
+[data-testid="asset-card"] .rotrade-caption-values .rotrade-row,
+[data-testid="collectible-item"] .rotrade-caption-values .rotrade-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    min-height: min-content;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible !important;
+}
+
+.list-item.asset-item .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+.item-card-container .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+[data-testid="asset-card"] .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+[data-testid="collectible-item"] .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux {
+    color: rgb(247, 247, 248);
+}
+
+.list-item.asset-item
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]),
+.item-card-container
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]),
+[data-testid="asset-card"]
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]),
+[data-testid="collectible-item"]
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]) {
+    color: #fff;
+    font-weight: 700;
+}
+
+body:not(.dark-theme) .list-item.asset-item .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+body:not(.dark-theme) .item-card-container .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+body:not(.dark-theme) [data-testid="asset-card"] .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+body:not(.dark-theme) [data-testid="collectible-item"] .rotrade-caption-values .rotrade-row-usd .valueSpan.text-robux,
+body:not(.dark-theme)
+    .list-item.asset-item
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]),
+body:not(.dark-theme)
+    .item-card-container
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]),
+body:not(.dark-theme)
+    [data-testid="asset-card"]
+    .rotrade-caption-values
+    .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]),
+body:not(.dark-theme)
+    [data-testid="collectible-item"]
     .rotrade-caption-values
     .valueSpan.text-robux[data-rotrade-synthetic]:not([data-rotrade-usd]) {
     color: rgb(32, 34, 39);

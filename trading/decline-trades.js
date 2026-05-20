@@ -1,8 +1,6 @@
 (function () {
     'use strict';
     const Storage = window.ModuleRegistry?.getSafe('Storage') || window.Storage;
-    const TradeNotificationQueue =
-        window.ModuleRegistry?.getSafe('TradeNotificationQueue') || window.TradeNotificationQueue;
     let isDeclining = false;
     let shouldStopDeclining = false;
     let currentDeclineController = null;

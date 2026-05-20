@@ -14,11 +14,6 @@
             const quantity = parseInt(quantityAttr) || parseInt(quantityDataset) || 0;
             return quantity > 0;
         });
-        const totalCatalogItems = Array.from(selectedCatalog).reduce((total, item) => {
-            const quantityAttr = item.getAttribute('data-quantity');
-            const quantityDataset = item.dataset.quantity;
-            return total + (parseInt(quantityAttr) || parseInt(quantityDataset) || 0);
-        }, 0);
         let yourTotalRap = 0;
         let yourTotalVal = 0;
         let theirTotalRap = 0;

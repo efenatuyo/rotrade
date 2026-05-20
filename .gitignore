@@ -11,3 +11,4 @@ dist/
 *.key
 Thumbs.db
 .idea/
+.claude/

@@ -3,14 +3,6 @@
     let lastKnownUserId = null;
     let checkInterval = null;
     const CHECK_INTERVAL_MS = 2e3;
-    const ACCOUNT_SPECIFIC_KEYS = [
-        'autoTrades',
-        'pendingExtensionTrades',
-        'sentTrades',
-        'sentTradeHistory',
-        'finalizedExtensionTrades',
-        'notifiedTrades',
-    ];
     const ACCOUNT_SPECIFIC_CACHE_KEYS = [
         'globalUserStats',
         'currentOpportunities',
@@ -21,37 +13,25 @@
     ];
     function saveAccountData(userId) {
         if (!userId) return;
-        const accountData = {
-            storage: {},
-            caches: {},
-        };
-        ACCOUNT_SPECIFIC_KEYS.forEach((key) => {
-            try {
-                const accountKey = `${key}_${userId}`;
-                const value = localStorage.getItem(accountKey);
-                if (value !== null) {
-                    accountData.storage[key] = JSON.parse(value);
-                }
-            } catch (e) {}
-        });
+        const caches = {};
         ACCOUNT_SPECIFIC_CACHE_KEYS.forEach((key) => {
             try {
                 if (key === 'globalUserStats' && window.globalUserStats) {
-                    accountData.caches[key] = Array.from(window.globalUserStats.entries());
+                    caches[key] = Array.from(window.globalUserStats.entries());
                 } else if (key === 'sentTrades' && window.sentTrades) {
-                    accountData.caches[key] = Array.from(window.sentTrades);
+                    caches[key] = Array.from(window.sentTrades);
                 } else if (
                     key === 'userStatsLoadingInProgress' &&
                     window.userStatsLoadingInProgress
                 ) {
-                    accountData.caches[key] = Array.from(window.userStatsLoadingInProgress);
+                    caches[key] = Array.from(window.userStatsLoadingInProgress);
                 } else if (window[key] !== undefined) {
-                    accountData.caches[key] = window[key];
+                    caches[key] = window[key];
                 }
             } catch (e) {}
         });
         try {
-            localStorage.setItem(`accountData_${userId}`, JSON.stringify(accountData));
+            localStorage.setItem(`accountData_${userId}`, JSON.stringify(caches));
         } catch (e) {}
     }
     function loadAccountData(userId) {
@@ -59,23 +39,20 @@
         try {
             const stored = localStorage.getItem(`accountData_${userId}`);
             if (!stored) return;
-            const accountData = JSON.parse(stored);
-            Object.keys(accountData.storage || {}).forEach((key) => {
-                try {
-                    const accountKey = `${key}_${userId}`;
-                    localStorage.setItem(accountKey, JSON.stringify(accountData.storage[key]));
-                } catch (e) {}
-            });
-            Object.keys(accountData.caches || {}).forEach((key) => {
+            let caches = JSON.parse(stored);
+            if (caches && typeof caches === 'object' && caches.caches) {
+                caches = caches.caches;
+            }
+            Object.keys(caches || {}).forEach((key) => {
                 try {
                     if (key === 'globalUserStats') {
-                        window.globalUserStats = new Map(accountData.caches[key] || []);
+                        window.globalUserStats = new Map(caches[key] || []);
                     } else if (key === 'sentTrades') {
-                        window.sentTrades = new Set(accountData.caches[key] || []);
+                        window.sentTrades = new Set(caches[key] || []);
                     } else if (key === 'userStatsLoadingInProgress') {
-                        window.userStatsLoadingInProgress = new Set(accountData.caches[key] || []);
+                        window.userStatsLoadingInProgress = new Set(caches[key] || []);
                     } else {
-                        window[key] = accountData.caches[key];
+                        window[key] = caches[key];
                     }
                 } catch (e) {}
             });
@@ -153,13 +130,32 @@
     function startMonitoring() {
         stopMonitoring();
         checkAccountChange();
-        checkInterval = setInterval(checkAccountChange, CHECK_INTERVAL_MS);
+        if (window.Scheduler) {
+            window.Scheduler.everyVisible(
+                'accountChangeDetector',
+                CHECK_INTERVAL_MS,
+                checkAccountChange
+            );
+        } else {
+            checkInterval = setInterval(checkAccountChange, CHECK_INTERVAL_MS);
+        }
     }
     function stopMonitoring() {
+        if (window.Scheduler) {
+            window.Scheduler.cancel('accountChangeDetector');
+        }
         if (checkInterval) {
             clearInterval(checkInterval);
             checkInterval = null;
         }
+    }
+    let pendingCheck = 0;
+    function debouncedCheck() {
+        if (pendingCheck) return;
+        pendingCheck = setTimeout(() => {
+            pendingCheck = 0;
+            checkAccountChange();
+        }, 250);
     }
     function init() {
         if (document.readyState === 'loading') {
@@ -171,10 +167,10 @@
         }
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
-                checkAccountChange();
+                debouncedCheck();
             }
         });
-        window.addEventListener('focus', checkAccountChange);
+        window.addEventListener('focus', debouncedCheck);
     }
     init();
     window.AccountChangeDetector = {

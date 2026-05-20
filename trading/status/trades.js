@@ -164,8 +164,6 @@
                 } catch (error) {}
             }
         });
-        const activeTab = document.querySelector('.filter-btn.active');
-        const currentFilter = activeTab ? activeTab.getAttribute('data-filter') : null;
         if (
             typeof TradeLoading.loadOutboundTrades === 'function' &&
             document.getElementById('outbound-container')

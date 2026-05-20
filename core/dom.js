@@ -1,11 +1,6 @@
 (function () {
     'use strict';
     const elementCache = new Map();
-    const observer = new MutationObserver(() => elementCache.clear());
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-    });
     function $(selector, parent = document) {
         const key = `${selector}:${parent === document ? 'doc' : parent.id || 'unknown'}`;
         if (elementCache.has(key)) {

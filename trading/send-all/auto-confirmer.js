@@ -1,91 +1,43 @@
 (function () {
     'use strict';
-    const failureTracker = new Map();
-    const MAX_FAILURES = 2;
-    const inMemoryPasswords = new Map();
-    function zeroizeString(str) {
-        if (str && typeof str === 'string') {
-            const arr = new Uint8Array(new TextEncoder().encode(str));
-            for (let i = 0; i < arr.length; i++) {
-                arr[i] = 0;
+    const { resetFailureCount, incrementFailureCount, shouldUseFallback } =
+        window.AutoConfirmerFailureTracker || {};
+    const {
+        resetTwoFaExpiredStreak,
+        incrementTwoFaExpiredStreak,
+        TWOFA_EXPIRED_STREAK_THRESHOLD,
+    } = window.AutoConfirmerTwoFaStreak || {};
+    function sendBg(action, payload) {
+        return new Promise((resolve) => {
+            try {
+                chrome.runtime.sendMessage({ action: action, ...payload }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve({ success: false });
+                        return;
+                    }
+                    resolve(response || { success: false });
+                });
+            } catch {
+                resolve({ success: false });
             }
-        }
+        });
     }
-    function getPassword(userId) {
-        return inMemoryPasswords.get(String(userId)) || null;
+    async function getPassword(userId) {
+        const res = await sendBg('passwordStore.get', { userId: String(userId) });
+        return res && res.success ? res.password : null;
     }
     function setPassword(userId, password) {
-        inMemoryPasswords.set(String(userId), password);
-        setTimeout(
-            () => {
-                const pwd = inMemoryPasswords.get(String(userId));
-                if (pwd) {
-                    zeroizeString(pwd);
-                    inMemoryPasswords.delete(String(userId));
-                }
-            },
-            30 * 60 * 1e3
-        );
+        return sendBg('passwordStore.set', { userId: String(userId), password: password });
     }
     function clearPassword(userId) {
-        const pwd = inMemoryPasswords.get(String(userId));
-        if (pwd) {
-            zeroizeString(pwd);
-        }
-        inMemoryPasswords.delete(String(userId));
+        return sendBg('passwordStore.clear', { userId: String(userId) });
     }
     function clearAllPasswords() {
-        for (const [userId, pwd] of inMemoryPasswords) {
-            zeroizeString(pwd);
-        }
-        inMemoryPasswords.clear();
+        return sendBg('passwordStore.clearAll', {});
     }
     window.addEventListener('beforeunload', () => {
         clearAllPasswords();
     });
-    function getTradeKey(opportunity) {
-        return `${opportunity.id}_${opportunity.targetUserId}`;
-    }
-    function resetFailureCount(opportunity) {
-        const key = getTradeKey(opportunity);
-        failureTracker.delete(key);
-    }
-    function incrementFailureCount(opportunity) {
-        const key = getTradeKey(opportunity);
-        const count = failureTracker.get(key) || 0;
-        failureTracker.set(key, count + 1);
-        return count + 1;
-    }
-    function shouldUseFallback(opportunity) {
-        const key = getTradeKey(opportunity);
-        const failures = failureTracker.get(key) || 0;
-        return failures >= MAX_FAILURES;
-    }
-    const TWOFA_EXPIRED_STREAK_KEY = '2fa_secret_expired_streak_';
-    const TWOFA_EXPIRED_STREAK_THRESHOLD = 3;
-    async function resetTwoFaExpiredStreak(userId) {
-        if (!userId || !window.Storage) {
-            return;
-        }
-        try {
-            await Storage.remove(TWOFA_EXPIRED_STREAK_KEY + userId);
-        } catch {}
-    }
-    async function incrementTwoFaExpiredStreak(userId) {
-        if (!userId || !window.Storage) {
-            return 1;
-        }
-        try {
-            const key = TWOFA_EXPIRED_STREAK_KEY + userId;
-            const prev = await Storage.get(key, 0);
-            const n =
-                (typeof prev === 'number' && !isNaN(prev) ? prev : parseInt(prev, 10) || 0) + 1;
-            await Storage.set(key, n);
-            return n;
-        } catch {
-            return 1;
-        }
-    }
     function getHeaderValue(responseHeaders, headerNames) {
         if (!responseHeaders) return null;
         for (const headerName of headerNames) {
@@ -334,7 +286,7 @@
                     error: 'Challenge ID header not provided',
                 };
             }
-            let password = getPassword(userId);
+            let password = await getPassword(userId);
             if (!password) {
                 return {
                     success: false,
@@ -511,7 +463,7 @@
                     useFallback: true,
                 };
             }
-            let password = getPassword(userId);
+            let password = await getPassword(userId);
             if (!password) {
                 return {
                     useFallback: true,

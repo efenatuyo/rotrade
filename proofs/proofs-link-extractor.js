@@ -75,9 +75,55 @@
         }
         return null;
     }
+    function readDataAttr(itemCard, name) {
+        if (!itemCard) return null;
+        const v = itemCard.getAttribute(name);
+        if (v == null) return null;
+        const trimmed = String(v).trim();
+        return trimmed.length ? trimmed : null;
+    }
+    function normalizeItemId(rawId) {
+        if (rawId == null) return null;
+        const aliases = window.TradeItemIdAliases;
+        if (aliases && typeof aliases.normalizeTradeItemId === 'function') {
+            const mapped = aliases.normalizeTradeItemId(rawId);
+            if (mapped != null && mapped !== '') {
+                return String(mapped);
+            }
+        }
+        return String(rawId);
+    }
+    function extractCiidFromDom(itemCard) {
+        if (!itemCard) return null;
+        const container = itemCard.querySelector('.item-card-container[data-collectibleiteminstanceid]');
+        if (container) {
+            const v = container.getAttribute('data-collectibleiteminstanceid');
+            if (v && v.trim()) return v.trim();
+        }
+        const direct = itemCard.getAttribute && itemCard.getAttribute('data-collectibleiteminstanceid');
+        if (direct && direct.trim()) return direct.trim();
+        return null;
+    }
+    function extractItemContext(itemCard) {
+        if (!itemCard) return { itemId: null, ciid: null, uaid: null, itemName: null };
+        const taggedAssetId = readDataAttr(itemCard, 'data-rotrade-asset-id');
+        const domItemId = extractItemId(itemCard);
+        const rawId = taggedAssetId || domItemId;
+        const ciid =
+            extractCiidFromDom(itemCard) || readDataAttr(itemCard, 'data-rotrade-ciid');
+        return {
+            itemId: rawId ? normalizeItemId(rawId) : null,
+            rawItemId: rawId || null,
+            ciid: ciid,
+            uaid: readDataAttr(itemCard, 'data-rotrade-uaid'),
+            itemName: extractItemName(itemCard),
+        };
+    }
     window.ProofsLinkExtractor = {
         extractItemId: extractItemId,
         extractItemName: extractItemName,
+        extractItemContext: extractItemContext,
+        normalizeItemId: normalizeItemId,
         extractItemIdFromThumbnail: extractItemIdFromThumbnail,
         extractItemIdFromCatalogLink: extractItemIdFromCatalogLink,
         extractItemIdFromRolimonsLink: extractItemIdFromRolimonsLink,

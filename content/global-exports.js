@@ -1,13 +1,13 @@
 (function () {
     'use strict';
     window.loadThumbnailsForElements = Thumbnails.loadForElements;
-    window.selectInventoryItem = function (element, index) {
+    window.selectInventoryItem = function (element) {
         element.classList.toggle('selected');
         if (window.updateTradeSummaryGlobal) {
             window.updateTradeSummaryGlobal();
         }
     };
-    window.selectCatalogItem = function (element, index) {
+    window.selectCatalogItem = function (element) {
         element.classList.toggle('selected');
         if (window.updateTradeSummaryGlobal) {
             window.updateTradeSummaryGlobal();
@@ -63,17 +63,6 @@
     }
     async function loadInventoryData() {
         return Inventory.loadInventoryData();
-    }
-    function getCurrentUserId() {
-        return Inventory.getCurrentUserId();
-    }
-    async function getCurrentUserIdAsync() {
-        return Inventory.getCurrentUserIdAsync
-            ? await Inventory.getCurrentUserIdAsync()
-            : Inventory.getCurrentUserId();
-    }
-    async function getUserCollectibles(userId) {
-        return Inventory.getUserCollectibles(userId);
     }
     async function loadCatalogData() {
         return Inventory.loadCatalogData();

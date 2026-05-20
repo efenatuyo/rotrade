@@ -99,7 +99,7 @@
                 setupPaginationButtons();
             });
         }
-        const observer = new MutationObserver((mutations) => {
+        const observer = new MutationObserver(() => {
             const nextBtn = document.getElementById('pagination-next');
             const prevBtn = document.getElementById('pagination-prev');
             if ((nextBtn && !nextBtn._handlerAttached) || (prevBtn && !prevBtn._handlerAttached)) {

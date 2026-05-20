@@ -1,24 +1,41 @@
 (function () {
     'use strict';
+    const SETTINGS_DEFAULTS = {
+        maxOwnerDays: 1e8,
+        lastOnlineDays: 3,
+        tradeMemoryDays: 7,
+        autoConfirmerEnabled: false,
+        usdPer1kRobux: 4,
+        usdValuesEnabled: true,
+        tradeListValueBoxEnabled: true,
+    };
+    let cachedSettings = {};
+    try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get(['rotradeSettings'], function (r) {
+                if (r && r.rotradeSettings && typeof r.rotradeSettings === 'object') {
+                    cachedSettings = r.rotradeSettings;
+                }
+            });
+            if (chrome.storage.onChanged) {
+                chrome.storage.onChanged.addListener(function (changes, areaName) {
+                    if (areaName !== 'local' || !changes || !changes.rotradeSettings) {
+                        return;
+                    }
+                    const next = changes.rotradeSettings.newValue;
+                    cachedSettings = next && typeof next === 'object' ? next : {};
+                });
+            }
+        }
+    } catch {}
     function getSettings() {
-        const defaults = {
-            maxOwnerDays: 1e8,
-            lastOnlineDays: 3,
-            tradeMemoryDays: 7,
-            autoConfirmerEnabled: false,
-            tradeDetailChartAlertsEnabled: true,
-            tradeDetailChartRecencyDays: 30,
-            tradeDetailNewChartMinValue: 2e5,
-            tradeDetailJumpMaxGapDays: 3,
-            tradeDetailJumpMinPct: 1e3,
-            usdPer1kRobux: 4,
-        };
         return {
-            ...defaults,
-            ...Storage.get('rotradeSettings', {}),
+            ...SETTINGS_DEFAULTS,
+            ...cachedSettings,
         };
     }
     function saveSettings(settings) {
+        cachedSettings = settings && typeof settings === 'object' ? settings : {};
         Storage.set('rotradeSettings', settings);
     }
     async function getAutoConfirmerSettings(userId) {

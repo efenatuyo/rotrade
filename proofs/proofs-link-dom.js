@@ -1,30 +1,17 @@
 (function () {
     'use strict';
-    function createSafeUrl(itemId, itemName) {
+    function createProofsLink(context) {
         if (!window.ProofsLinkConfig || !window.ProofsLinkValidation) return null;
         const { CONFIG: CONFIG } = window.ProofsLinkConfig;
-        const { sanitizeItemId: sanitizeItemId, proofsSlugFromItemName: proofsSlugFromItemName } =
-            window.ProofsLinkValidation;
-        const slug = itemName ? proofsSlugFromItemName(itemName) : null;
-        if (slug) {
-            return `${CONFIG.baseUrl}/${encodeURIComponent(slug)}`;
-        }
-        const sanitizedId = sanitizeItemId(itemId);
-        if (!sanitizedId) return null;
-        return `${CONFIG.baseUrl}/${sanitizedId}`;
-    }
-    function createProofsLink(itemId, itemName) {
-        if (!window.ProofsLinkConfig || !window.ProofsLinkValidation) return null;
-        const { CONFIG: CONFIG } = window.ProofsLinkConfig;
-        const { sanitizeItemId: sanitizeItemId } = window.ProofsLinkValidation;
-        const sanitizedId = sanitizeItemId(itemId);
-        if (!sanitizedId && !itemName) return null;
-        const url = createSafeUrl(sanitizedId, itemName);
-        if (!url) return null;
+        const ctx = context || {};
+        const itemId = ctx.itemId || null;
+        const itemName = ctx.itemName || null;
+        const ciid = ctx.ciid || null;
+        const uaid = ctx.uaid || null;
+        if (!itemId && !itemName) return null;
         const proofsLinkContainer = document.createElement('a');
-        proofsLinkContainer.href = url;
-        proofsLinkContainer.target = '_blank';
-        proofsLinkContainer.rel = 'noopener noreferrer';
+        proofsLinkContainer.href = 'javascript:void(0)';
+        proofsLinkContainer.setAttribute('role', 'button');
         proofsLinkContainer.className = 'proofs-link-container ng-isolate-scope';
         proofsLinkContainer.setAttribute('uib-tooltip', CONFIG.tooltipText);
         proofsLinkContainer.setAttribute('tooltip-placement', 'right');
@@ -34,6 +21,18 @@
         proofsLinkContainer.setAttribute('data-original-title', CONFIG.tooltipText);
         proofsLinkContainer.style.cssText =
             'cursor: pointer; display: flex; align-items: center; justify-content: center; position: absolute; top: 8px; right: 8px; z-index: 10;';
+        proofsLinkContainer.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.ProofsPopup && typeof window.ProofsPopup.show === 'function') {
+                window.ProofsPopup.show({
+                    itemId: itemId,
+                    itemName: itemName,
+                    ciid: ciid,
+                    uaid: uaid,
+                });
+            }
+        });
         const iconSpan = document.createElement('span');
         iconSpan.className = 'icon-proofs';
         iconSpan.textContent = 'P';
@@ -48,7 +47,6 @@
         document.head.appendChild(style);
     }
     window.ProofsLinkDOM = {
-        createSafeUrl: createSafeUrl,
         createProofsLink: createProofsLink,
         addProofsLinkStyles: addProofsLinkStyles,
     };

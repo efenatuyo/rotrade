@@ -42,20 +42,38 @@
         }
     }
     function addAutoTradesTab() {
-        const tradeLink = document.querySelector('a[href*="/trades"], a[id="nav-trade"]');
-        if (tradeLink) {
-            const existingAutoTrades = document.querySelector('#nav-auto-trades');
-            if (existingAutoTrades) return;
-            const langPrefix = getLanguagePrefix();
-            const autoTradesPath = buildPath('/auto-trades');
-            const autoTradesLink = document.createElement('li');
+        const tradeLink = window.RobloxSelectors
+            ? window.RobloxSelectors.find('navTradeLink')
+            : document.querySelector('a[href*="/trades"], a[id="nav-trade"]');
+        if (!tradeLink) return;
+        const autoTradesExisting = window.RobloxSelectors
+            ? window.RobloxSelectors.find('navAutoTradesLink')
+            : document.querySelector('#nav-auto-trades');
+        if (autoTradesExisting) return;
+        const tradeListItem = tradeLink.closest('li');
+        if (!tradeListItem || !tradeListItem.parentNode) return;
+        const autoTradesPath = buildPath('/auto-trades');
+        const usesNewDesign = tradeLink.classList.contains('content-emphasis');
+        const autoTradesLink = document.createElement('li');
+        if (usesNewDesign) {
+            autoTradesLink.innerHTML =
+                `<a href="${autoTradesPath}" id="nav-auto-trades" target="_self" ` +
+                `class="content-emphasis text-title-large flex items-center gap-small padding-left-xsmall padding-right-xxsmall radius-medium relative clip group/interactable focus-visible:outline-focus disabled:outline-none">` +
+                `<div role="presentation" class="absolute inset-[0] transition-colors group-hover/interactable:bg-[var(--color-state-hover)] group-active/interactable:bg-[var(--color-state-press)] group-disabled/interactable:bg-none"></div>` +
+                `<span class="size-1000 grow-0 shrink-0 basis-auto flex justify-center items-center">` +
+                `<span class="icon-nav-trade"></span>` +
+                `</span>` +
+                `<span class="min-width-0 text-truncate-end text-no-wrap">Auto Trades</span>` +
+                `</a>`;
+        } else {
             autoTradesLink.style.display = 'block';
-            autoTradesLink.innerHTML = `\n                <a class="dynamic-overflow-container text-nav" href="${autoTradesPath}" id="nav-auto-trades" target="_self">\n                    <div><span class="icon-nav-trade"></span></div>\n                    <span class="font-header-2 dynamic-ellipsis-item" title="Auto Trades">Auto Trades</span>\n                </a>\n            `;
-            const tradeListItem = tradeLink.closest('li');
-            if (tradeListItem && tradeListItem.parentNode) {
-                tradeListItem.parentNode.insertBefore(autoTradesLink, tradeListItem);
-            }
+            autoTradesLink.innerHTML =
+                `<a class="dynamic-overflow-container text-nav" href="${autoTradesPath}" id="nav-auto-trades" target="_self">` +
+                `<div><span class="icon-nav-trade"></span></div>` +
+                `<span class="font-header-2 dynamic-ellipsis-item" title="Auto Trades">Auto Trades</span>` +
+                `</a>`;
         }
+        tradeListItem.parentNode.insertBefore(autoTradesLink, tradeListItem);
     }
     function handleRouting() {
         const currentPath = window.location.pathname;
@@ -133,36 +151,11 @@
         } else if (normalizedPath === '/auto-trades/send') {
             sessionStorage.setItem('loadSendTrades', 'true');
             window.location.href = buildPath('/trades');
-        } else if (normalizedPath.startsWith('/proofs/')) {
-            const afterProofs = normalizedPath.slice('/proofs/'.length);
-            let pathSegment = (afterProofs.split('/')[0] || '').trim();
-            try {
-                pathSegment = decodeURIComponent(pathSegment);
-            } catch {}
-            const pathIsNumericOnly = pathSegment && /^\d+$/.test(pathSegment);
-            let itemId = null;
-            let itemName = null;
-            if (pathIsNumericOnly) {
-                itemId = pathSegment;
-            } else if (pathSegment) {
-                itemName = pathSegment;
-            }
-            document.body.classList.add('path-proofs');
-            if ((itemId || itemName) && window.loadProofsPage) {
-                window.loadProofsPage(itemId, itemName);
-            } else if (itemId || itemName) {
-                setTimeout(() => {
-                    if (window.loadProofsPage) {
-                        window.loadProofsPage(itemId, itemName);
-                    }
-                }, 100);
-            }
         } else {
             document.body.classList.remove(
                 'path-auto-trades',
                 'path-auto-trades-create',
-                'path-auto-trades-send',
-                'path-proofs'
+                'path-auto-trades-send'
             );
         }
     }

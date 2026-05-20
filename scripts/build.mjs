@@ -36,12 +36,17 @@ async function ensureDir(filePath) {
     });
 }
 
-async function minifyJsCode(code) {
+const WANT_SOURCEMAPS =
+    process.env.ROTRADE_SOURCEMAPS === '1' || process.env.NODE_ENV === 'development';
+
+async function minifyJsCode(code, sourcefile) {
     const result = await esbuild.transform(code, {
         loader: 'js',
         minify: true,
         legalComments: 'none',
         target: 'es2018',
+        sourcemap: WANT_SOURCEMAPS ? 'inline' : false,
+        sourcefile: sourcefile,
     });
     return result.code;
 }
@@ -178,6 +183,48 @@ async function writeDistManifest(manifest) {
     await writeFile(join(dist, 'manifest.json'), text, 'utf8');
 }
 
+async function validateContentScriptOrder(contentList) {
+    const importRe = /=\s*window\.([A-Za-z_$][\w$]*)\s*(?:\|\||;|$)/g;
+    const defineRe = /window\.([A-Za-z_$][\w$]*)\s*=\s*[^=]/g;
+    const definedAfter = new Map();
+    const sources = [];
+    for (const rel of contentList) {
+        const abs = join(root, rel);
+        const text = await readFile(abs, 'utf8');
+        sources.push({ rel: rel, text: text });
+    }
+    for (let i = 0; i < sources.length; i++) {
+        const s = sources[i];
+        defineRe.lastIndex = 0;
+        let m;
+        while ((m = defineRe.exec(s.text))) {
+            const name = m[1];
+            if (!definedAfter.has(name)) {
+                definedAfter.set(name, i);
+            }
+        }
+    }
+    const warnings = [];
+    for (let i = 0; i < sources.length; i++) {
+        const s = sources[i];
+        importRe.lastIndex = 0;
+        const seen = new Set();
+        let m;
+        while ((m = importRe.exec(s.text))) {
+            const name = m[1];
+            if (seen.has(name)) continue;
+            seen.add(name);
+            const definedAt = definedAfter.get(name);
+            if (definedAt !== undefined && definedAt > i) {
+                warnings.push(
+                    `${s.rel} reads window.${name} (top-level), but it's defined later in ${sources[definedAt].rel}`
+                );
+            }
+        }
+    }
+    return warnings;
+}
+
 async function copyOptionalRoot(name) {
     try {
         await copyFile(join(root, name), join(dist, name));
@@ -198,6 +245,15 @@ async function main() {
     const contentList = manifest.content_scripts?.[0]?.js;
     if (!Array.isArray(contentList) || contentList.length === 0) {
         throw new Error('manifest.json: missing content_scripts[0].js array');
+    }
+    const orderWarnings = await validateContentScriptOrder(contentList);
+    for (const w of orderWarnings) {
+        process.stderr.write('manifest-order: ' + w + '\n');
+    }
+    if (orderWarnings.length && process.env.ROTRADE_STRICT === '1') {
+        throw new Error(
+            `manifest content_scripts ordering check found ${orderWarnings.length} issue(s); set ROTRADE_STRICT=0 to allow build`
+        );
     }
     const [contentBundle, backgroundBundle] = await Promise.all([
         buildContentBundle(contentList),

@@ -16,8 +16,5 @@
         get loadBasicSendTradesInterface() {
             return window.loadBasicSendTradesInterface;
         },
-        get loadProofsPage() {
-            return window.loadProofsPage;
-        },
     };
 })();

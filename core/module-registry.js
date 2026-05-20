@@ -77,6 +77,20 @@
             return fallback;
         }
     }
+    function requireGlobals(names) {
+        const missing = [];
+        for (const name of names) {
+            if (typeof window === 'undefined' || window[name] === undefined) {
+                missing.push(name);
+            }
+        }
+        if (missing.length && window.Utils?.Logger?.log) {
+            window.Utils.Logger.log('module_registry_missing_globals', {
+                missing: missing,
+            });
+        }
+        return missing;
+    }
     const ModuleRegistry = {
         register: registerModule,
         get: getModule,
@@ -85,6 +99,7 @@
         getDependencies: getModuleDependencies,
         clear: clearModule,
         clearAll: clearAllModules,
+        requireGlobals: requireGlobals,
     };
     if (typeof window !== 'undefined') {
         window.ModuleRegistry = ModuleRegistry;

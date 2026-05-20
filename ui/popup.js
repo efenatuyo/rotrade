@@ -4,12 +4,55 @@
         lastOnlineDays: 3,
         tradeMemoryDays: 7,
         autoConfirmerEnabled: false,
-        tradeDetailChartAlertsEnabled: true,
-        tradeDetailChartRecencyDays: 30,
-        tradeDetailNewChartMinValue: 2e5,
-        tradeDetailJumpMaxGapDays: 3,
-        tradeDetailJumpMinPct: 1e3,
         usdPer1kRobux: 4,
+        usdValuesEnabled: true,
+        tradeListValueBoxEnabled: true,
+        notificationsEnabled: true,
+        profileMetric: 'value',
+        showTradeSummaryWinLoss: true,
+        userProfileBadgesEnabled: true,
+        desktopNotificationsEnabled: false,
+    };
+    const SAVE_DEBOUNCE_MS = 250;
+    const STATUS_RESET_MS = 1500;
+    const NUMERIC_VALIDATORS = {
+        maxOwnerDays: {
+            parse: (v) => parseInt(v, 10),
+            min: 8,
+            max: 999999999,
+            message: 'Must be between 8 and 999,999,999.',
+        },
+        lastOnlineDays: {
+            parse: (v) => parseInt(v, 10),
+            min: 1,
+            max: 365,
+            message: 'Must be between 1 and 365.',
+        },
+        tradeMemoryDays: {
+            parse: (v) => parseInt(v, 10),
+            min: 1,
+            max: 30,
+            message: 'Must be between 1 and 30.',
+        },
+        usdPer1kRobux: {
+            parse: (v) => parseFloat(v),
+            min: 0.01,
+            max: 1e3,
+            message: 'Must be between 0.01 and 1000 (USD per 1,000 Robux).',
+        },
+    };
+    const BOOLEAN_FIELDS = [
+        'usdValuesEnabled',
+        'tradeListValueBoxEnabled',
+        'notificationsEnabled',
+        'showTradeSummaryWinLoss',
+        'userProfileBadgesEnabled',
+    ];
+    const PERMISSION_BOOLEAN_FIELDS = {
+        desktopNotificationsEnabled: { permissions: ['notifications'] },
+    };
+    const SELECT_FIELDS = {
+        profileMetric: { values: ['value', 'rap'], default: 'value' },
     };
     async function getSettings() {
         const r = await chrome.storage.local.get(['rotradeSettings']);
@@ -22,6 +65,15 @@
         await chrome.storage.local.set({
             rotradeSettings: settings,
         });
+    }
+    async function patchSettings(patch) {
+        const current = await getSettings();
+        const merged = {
+            ...current,
+            ...patch,
+        };
+        await saveSettingsObj(merged);
+        return merged;
     }
     async function getRobloxUserFromTab() {
         try {
@@ -104,22 +156,6 @@
         }
         if (c) {
             c.textContent = `Block same trade combo for this many days (current: ${s.tradeMemoryDays})`;
-        }
-        const td1 = document.getElementById('tradeDetailChartRecencyDays-help');
-        const td2 = document.getElementById('tradeDetailNewChartMinValue-help');
-        const td3 = document.getElementById('tradeDetailJumpMaxGapDays-help');
-        const td4 = document.getElementById('tradeDetailJumpMinPct-help');
-        if (td1) {
-            td1.textContent = `Only flag rows when data is within this many days of now (current: ${s.tradeDetailChartRecencyDays})`;
-        }
-        if (td2) {
-            td2.textContent = `“New chart” alert if first scan is within recency and value is at least this (current: ${Number(s.tradeDetailNewChartMinValue).toLocaleString()})`;
-        }
-        if (td3) {
-            td3.textContent = `Compare consecutive chart points at most this many days apart (current: ${s.tradeDetailJumpMaxGapDays})`;
-        }
-        if (td4) {
-            td4.textContent = `Jump alert if relative increase is at least this percent (current: ${s.tradeDetailJumpMinPct}%)`;
         }
         const usd1k = document.getElementById('usdPer1kRobux-help');
         if (usd1k) {
@@ -223,226 +259,281 @@
             }
         }
     }
-    async function populate() {
-        clearSaveFieldErrors();
-        const s = await getSettings();
+    function populateFromSettings(s) {
+        clearAllFieldErrors();
         document.getElementById('maxOwnerDays').value = s.maxOwnerDays;
         document.getElementById('lastOnlineDays').value = s.lastOnlineDays;
         document.getElementById('tradeMemoryDays').value = s.tradeMemoryDays;
-        const chartEn = document.getElementById('tradeDetailChartAlertsEnabled');
-        if (chartEn) {
-            chartEn.checked = s.tradeDetailChartAlertsEnabled !== false;
-        }
-        const tdR = document.getElementById('tradeDetailChartRecencyDays');
-        if (tdR) {
-            tdR.value = s.tradeDetailChartRecencyDays;
-        }
-        const tdN = document.getElementById('tradeDetailNewChartMinValue');
-        if (tdN) {
-            tdN.value = s.tradeDetailNewChartMinValue;
-        }
-        const tdJ = document.getElementById('tradeDetailJumpMaxGapDays');
-        if (tdJ) {
-            tdJ.value = s.tradeDetailJumpMaxGapDays;
-        }
-        const tdP = document.getElementById('tradeDetailJumpMinPct');
-        if (tdP) {
-            tdP.value = s.tradeDetailJumpMinPct;
-        }
         const usd1kInp = document.getElementById('usdPer1kRobux');
         if (usd1kInp) {
             usd1kInp.value = s.usdPer1kRobux;
         }
+        const usdEn = document.getElementById('usdValuesEnabled');
+        if (usdEn) {
+            usdEn.checked = s.usdValuesEnabled !== false;
+        }
+        const tlvb = document.getElementById('tradeListValueBoxEnabled');
+        if (tlvb) {
+            tlvb.checked = s.tradeListValueBoxEnabled !== false;
+        }
+        const notif = document.getElementById('notificationsEnabled');
+        if (notif) {
+            notif.checked = s.notificationsEnabled !== false;
+        }
+        const showWinLoss = document.getElementById('showTradeSummaryWinLoss');
+        if (showWinLoss) {
+            showWinLoss.checked = s.showTradeSummaryWinLoss !== false;
+        }
+        const userBadges = document.getElementById('userProfileBadgesEnabled');
+        if (userBadges) {
+            userBadges.checked = s.userProfileBadgesEnabled !== false;
+        }
+        const desktopNotif = document.getElementById('desktopNotificationsEnabled');
+        if (desktopNotif) {
+            desktopNotif.checked = s.desktopNotificationsEnabled === true;
+        }
+        Object.keys(SELECT_FIELDS).forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const cfg = SELECT_FIELDS[id];
+            const raw = s[id];
+            el.value = cfg.values.indexOf(raw) === -1 ? cfg.default : raw;
+        });
+        applyUsdEnabledStyling(s.usdValuesEnabled !== false);
         updateHelpTexts(s);
+    }
+    async function populate() {
+        const s = await getSettings();
+        populateFromSettings(s);
         await updateLoggedInHeader();
         await update2FAStatus(false, false);
     }
-    const SAVE_VALIDATED_FIELD_IDS = [
-        'maxOwnerDays',
-        'lastOnlineDays',
-        'tradeMemoryDays',
-        'tradeDetailChartRecencyDays',
-        'tradeDetailNewChartMinValue',
-        'tradeDetailJumpMaxGapDays',
-        'tradeDetailJumpMinPct',
-        'usdPer1kRobux',
-    ];
-    function clearSaveFieldErrors() {
-        SAVE_VALIDATED_FIELD_IDS.forEach(function (id) {
-            const el = document.getElementById(id + '-error');
-            if (el) {
-                el.textContent = '';
-                el.hidden = true;
-            }
-        });
+    function clearAllFieldErrors() {
+        Object.keys(NUMERIC_VALIDATORS).forEach((id) => setFieldError(id, ''));
     }
-    function setSaveFieldError(id, message) {
+    function setFieldError(id, message) {
         const el = document.getElementById(id + '-error');
         if (!el) {
             return;
         }
         el.textContent = message || '';
         el.hidden = !message;
-        if (message) {
-            el.scrollIntoView({
-                block: 'nearest',
-                behavior: 'smooth',
-            });
-            const inp = document.getElementById(id);
-            if (inp && typeof inp.focus === 'function') {
-                inp.focus();
-            }
+    }
+    let statusResetTimer = null;
+    function setStatus(kind, text) {
+        const el = document.getElementById('settings-status');
+        if (!el) {
+            return;
+        }
+        el.classList.remove(
+            'settings-status--idle',
+            'settings-status--ok',
+            'settings-status--err'
+        );
+        el.classList.add(`settings-status--${kind}`);
+        el.textContent = text || '';
+        if (statusResetTimer) {
+            clearTimeout(statusResetTimer);
+            statusResetTimer = null;
+        }
+        if (kind === 'ok') {
+            statusResetTimer = setTimeout(() => {
+                el.classList.remove('settings-status--ok');
+                el.classList.add('settings-status--idle');
+                el.textContent = '';
+                statusResetTimer = null;
+            }, STATUS_RESET_MS);
         }
     }
+    function applyUsdEnabledStyling(enabled) {
+        const inp = document.getElementById('usdPer1kRobux');
+        if (!inp) {
+            return;
+        }
+        inp.disabled = !enabled;
+        inp.style.opacity = enabled ? '' : '0.5';
+    }
+    const debouncedSaveById = {};
+    function persistField(id) {
+        if (id in NUMERIC_VALIDATORS) {
+            const cfg = NUMERIC_VALIDATORS[id];
+            const inp = document.getElementById(id);
+            if (!inp) {
+                return;
+            }
+            const raw = inp.value;
+            const parsed = cfg.parse(raw);
+            if (!isFinite(parsed) || parsed < cfg.min || parsed > cfg.max) {
+                setFieldError(id, cfg.message);
+                setStatus('err', 'Invalid value — not saved');
+                return;
+            }
+            setFieldError(id, '');
+            patchSettings({ [id]: parsed })
+                .then((merged) => {
+                    updateHelpTexts(merged);
+                    setStatus('ok', 'Saved');
+                })
+                .catch(() => setStatus('err', 'Save failed'));
+            return;
+        }
+        if (BOOLEAN_FIELDS.includes(id)) {
+            const inp = document.getElementById(id);
+            if (!inp) {
+                return;
+            }
+            const value = !!inp.checked;
+            patchSettings({ [id]: value })
+                .then(() => {
+                    if (id === 'usdValuesEnabled') {
+                        applyUsdEnabledStyling(value);
+                    }
+                    setStatus('ok', 'Saved');
+                })
+                .catch(() => setStatus('err', 'Save failed'));
+            return;
+        }
+        if (id in SELECT_FIELDS) {
+            const inp = document.getElementById(id);
+            if (!inp) {
+                return;
+            }
+            const cfg = SELECT_FIELDS[id];
+            const value = cfg.values.indexOf(inp.value) === -1 ? cfg.default : inp.value;
+            patchSettings({ [id]: value })
+                .then(() => setStatus('ok', 'Saved'))
+                .catch(() => setStatus('err', 'Save failed'));
+        }
+    }
+    function schedulePersist(id, delay) {
+        if (debouncedSaveById[id]) {
+            clearTimeout(debouncedSaveById[id]);
+        }
+        debouncedSaveById[id] = setTimeout(() => {
+            debouncedSaveById[id] = null;
+            persistField(id);
+        }, delay);
+    }
+    function wireTabs() {
+        const tabs = Array.from(document.querySelectorAll('.popup-tab'));
+        const panels = Array.from(document.querySelectorAll('.tab-panel'));
+        if (!tabs.length) {
+            return;
+        }
+        const scroll = document.querySelector('.popup-scroll');
+        const activate = function (name) {
+            tabs.forEach(function (t) {
+                const on = t.dataset.tab === name;
+                t.classList.toggle('is-active', on);
+                t.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            panels.forEach(function (p) {
+                const on = p.dataset.panel === name;
+                p.classList.toggle('is-active', on);
+                p.hidden = !on;
+            });
+            if (scroll) {
+                scroll.scrollTop = 0;
+            }
+        };
+        tabs.forEach(function (t) {
+            t.addEventListener('click', function () {
+                activate(t.dataset.tab);
+            });
+        });
+    }
     function wire() {
-        const saveBtn = document.getElementById('save-settings');
+        wireTabs();
         const resetBtn = document.getElementById('reset-settings');
         const clearHistoryBtn = document.getElementById('clear-trade-history');
         const set2FA = document.getElementById('set-twofa-secret');
         const reset2FA = document.getElementById('reset-twofa-secret');
         const openAuto = document.getElementById('open-auto-trades');
-        const refreshHelp = async () => {
-            const s = await getSettings();
-            updateHelpTexts(s);
-        };
-        SAVE_VALIDATED_FIELD_IDS.forEach(function (id) {
+        Object.keys(NUMERIC_VALIDATORS).forEach(function (id) {
             const inp = document.getElementById(id);
-            if (inp) {
-                inp.addEventListener('input', function () {
-                    setSaveFieldError(id, '');
-                });
+            if (!inp) {
+                return;
             }
-        });
-        if (saveBtn) {
-            saveBtn.addEventListener('click', async () => {
-                clearSaveFieldErrors();
-                const maxOwnerDays =
-                    parseInt(document.getElementById('maxOwnerDays').value, 10) || 1e8;
-                const lastOnlineDays =
-                    parseInt(document.getElementById('lastOnlineDays').value, 10) || 3;
-                const tradeMemoryDays =
-                    parseInt(document.getElementById('tradeMemoryDays').value, 10) || 7;
-                const tradeDetailChartAlertsEnabled = document.getElementById(
-                    'tradeDetailChartAlertsEnabled'
-                )
-                    ? document.getElementById('tradeDetailChartAlertsEnabled').checked
-                    : DEFAULTS.tradeDetailChartAlertsEnabled;
-                const tradeDetailChartRecencyDays =
-                    parseInt(document.getElementById('tradeDetailChartRecencyDays').value, 10) ||
-                    DEFAULTS.tradeDetailChartRecencyDays;
-                const tradeDetailNewChartMinValue =
-                    parseInt(document.getElementById('tradeDetailNewChartMinValue').value, 10) || 0;
-                const tradeDetailJumpMaxGapDays = parseFloat(
-                    document.getElementById('tradeDetailJumpMaxGapDays').value
-                );
-                const tradeDetailJumpMinPct =
-                    parseInt(document.getElementById('tradeDetailJumpMinPct').value, 10) ||
-                    DEFAULTS.tradeDetailJumpMinPct;
-                const usdPer1kRobux = parseFloat(document.getElementById('usdPer1kRobux').value);
-                if (maxOwnerDays < 8 || maxOwnerDays > 999999999) {
-                    setSaveFieldError('maxOwnerDays', 'Must be between 8 and 999,999,999.');
-                    return;
-                }
-                if (lastOnlineDays < 1 || lastOnlineDays > 365) {
-                    setSaveFieldError('lastOnlineDays', 'Must be between 1 and 365.');
-                    return;
-                }
-                if (tradeMemoryDays < 1 || tradeMemoryDays > 30) {
-                    setSaveFieldError('tradeMemoryDays', 'Must be between 1 and 30.');
-                    return;
-                }
-                if (tradeDetailChartRecencyDays < 1 || tradeDetailChartRecencyDays > 365) {
-                    setSaveFieldError(
-                        'tradeDetailChartRecencyDays',
-                        'Must be between 1 and 365 days.'
-                    );
-                    return;
-                }
-                if (tradeDetailNewChartMinValue < 0 || tradeDetailNewChartMinValue > 999999999999) {
-                    setSaveFieldError(
-                        'tradeDetailNewChartMinValue',
-                        'Must be between 0 and 999,999,999,999.'
-                    );
-                    return;
-                }
-                if (
-                    !isFinite(tradeDetailJumpMaxGapDays) ||
-                    tradeDetailJumpMaxGapDays < 0.25 ||
-                    tradeDetailJumpMaxGapDays > 30
-                ) {
-                    setSaveFieldError(
-                        'tradeDetailJumpMaxGapDays',
-                        'Must be between 0.25 and 30 days.'
-                    );
-                    return;
-                }
-                if (tradeDetailJumpMinPct < 1 || tradeDetailJumpMinPct > 5e4) {
-                    setSaveFieldError('tradeDetailJumpMinPct', 'Must be between 1% and 50000%.');
-                    return;
-                }
-                if (!isFinite(usdPer1kRobux) || usdPer1kRobux < 0.01 || usdPer1kRobux > 1e3) {
-                    setSaveFieldError(
-                        'usdPer1kRobux',
-                        'Must be between 0.01 and 1000 (USD per 1,000 Robux).'
-                    );
-                    return;
-                }
-                const cur = await getSettings();
-                await saveSettingsObj({
-                    ...cur,
-                    maxOwnerDays: maxOwnerDays,
-                    lastOnlineDays: lastOnlineDays,
-                    tradeMemoryDays: tradeMemoryDays,
-                    tradeDetailChartAlertsEnabled: tradeDetailChartAlertsEnabled,
-                    tradeDetailChartRecencyDays: tradeDetailChartRecencyDays,
-                    tradeDetailNewChartMinValue: tradeDetailNewChartMinValue,
-                    tradeDetailJumpMaxGapDays: tradeDetailJumpMaxGapDays,
-                    tradeDetailJumpMinPct: tradeDetailJumpMinPct,
-                    usdPer1kRobux: usdPer1kRobux,
-                });
-                clearSaveFieldErrors();
-                await refreshHelp();
-                const t = saveBtn.textContent;
-                saveBtn.textContent = 'Saved';
-                setTimeout(() => {
-                    saveBtn.textContent = t;
-                }, 1500);
+            inp.addEventListener('input', function () {
+                setFieldError(id, '');
+                schedulePersist(id, SAVE_DEBOUNCE_MS);
             });
-        }
+            inp.addEventListener('blur', function () {
+                schedulePersist(id, 0);
+            });
+        });
+        BOOLEAN_FIELDS.forEach(function (id) {
+            const inp = document.getElementById(id);
+            if (!inp) {
+                return;
+            }
+            inp.addEventListener('change', function () {
+                schedulePersist(id, 0);
+            });
+        });
+        Object.keys(PERMISSION_BOOLEAN_FIELDS).forEach(function (id) {
+            const inp = document.getElementById(id);
+            if (!inp) {
+                return;
+            }
+            inp.addEventListener('change', function () {
+                const desired = !!inp.checked;
+                const perms = PERMISSION_BOOLEAN_FIELDS[id];
+                const finalize = function (granted) {
+                    if (desired && !granted) {
+                        inp.checked = false;
+                        setStatus('err', 'Permission denied');
+                        patchSettings({ [id]: false }).catch(function () {});
+                        return;
+                    }
+                    patchSettings({ [id]: desired })
+                        .then(function () {
+                            setStatus('ok', 'Saved');
+                        })
+                        .catch(function () {
+                            setStatus('err', 'Save failed');
+                        });
+                };
+                if (!chrome.permissions || !chrome.permissions.request) {
+                    finalize(true);
+                    return;
+                }
+                if (desired) {
+                    try {
+                        chrome.permissions.request(perms, function (granted) {
+                            finalize(!!granted);
+                        });
+                    } catch {
+                        finalize(false);
+                    }
+                } else {
+                    try {
+                        chrome.permissions.remove(perms, function () {
+                            finalize(true);
+                        });
+                    } catch {
+                        finalize(true);
+                    }
+                }
+            });
+        });
+        Object.keys(SELECT_FIELDS).forEach(function (id) {
+            const inp = document.getElementById(id);
+            if (!inp) {
+                return;
+            }
+            inp.addEventListener('change', function () {
+                schedulePersist(id, 0);
+            });
+        });
         if (resetBtn) {
             resetBtn.addEventListener('click', async () => {
                 if (!confirm('Reset all values on this form to defaults?')) {
                     return;
                 }
-                clearSaveFieldErrors();
-                document.getElementById('maxOwnerDays').value = DEFAULTS.maxOwnerDays;
-                document.getElementById('lastOnlineDays').value = DEFAULTS.lastOnlineDays;
-                document.getElementById('tradeMemoryDays').value = DEFAULTS.tradeMemoryDays;
-                const cen = document.getElementById('tradeDetailChartAlertsEnabled');
-                if (cen) {
-                    cen.checked = DEFAULTS.tradeDetailChartAlertsEnabled;
-                }
-                const cr = document.getElementById('tradeDetailChartRecencyDays');
-                if (cr) {
-                    cr.value = DEFAULTS.tradeDetailChartRecencyDays;
-                }
-                const cn = document.getElementById('tradeDetailNewChartMinValue');
-                if (cn) {
-                    cn.value = DEFAULTS.tradeDetailNewChartMinValue;
-                }
-                const cj = document.getElementById('tradeDetailJumpMaxGapDays');
-                if (cj) {
-                    cj.value = DEFAULTS.tradeDetailJumpMaxGapDays;
-                }
-                const cp = document.getElementById('tradeDetailJumpMinPct');
-                if (cp) {
-                    cp.value = DEFAULTS.tradeDetailJumpMinPct;
-                }
-                const cUsd = document.getElementById('usdPer1kRobux');
-                if (cUsd) {
-                    cUsd.value = DEFAULTS.usdPer1kRobux;
-                }
-                await refreshHelp();
+                await saveSettingsObj({ ...DEFAULTS });
+                populateFromSettings({ ...DEFAULTS });
+                setStatus('ok', 'Defaults applied');
             });
         }
         if (clearHistoryBtn) {

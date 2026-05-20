@@ -2,7 +2,6 @@
     'use strict';
     const OpportunityFetcher = window.OpportunityFetcher || {};
     const ProgressTracker = window.ProgressTracker || class {};
-    const StateManager = window.StateManager;
     let isSendingAllTrades = false;
     let shouldStopSending = false;
     let globalAbortController = null;

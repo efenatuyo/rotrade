@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const { SecurityUtils: SecurityUtils, Storage: Storage, Utils: Utils } = window;
+    const { Storage: Storage } = window;
     const numCache = new Map();
     const dateCache = new Map();
     const statusCache = new Map();

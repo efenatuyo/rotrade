@@ -5,7 +5,41 @@
         Utils: Utils,
         Storage: Storage,
         DOM: DOM,
+        SecurityUtils: SecurityUtils,
     } = window;
+    const sAttr =
+        SecurityUtils && SecurityUtils.sanitizeAttribute
+            ? SecurityUtils.sanitizeAttribute
+            : (v) =>
+                  String(v ?? '')
+                      .replace(/&/g, '&amp;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#x27;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+    const sHtml =
+        SecurityUtils && SecurityUtils.sanitizeHtml
+            ? SecurityUtils.sanitizeHtml
+            : (v) => {
+                  const d = document.createElement('div');
+                  d.textContent = String(v ?? '');
+                  return d.innerHTML;
+              };
+    const sUrl =
+        SecurityUtils && SecurityUtils.sanitizeUrl
+            ? SecurityUtils.sanitizeUrl
+            : (u) => {
+                  if (!u || typeof u !== 'string') return null;
+                  try {
+                      const o = new URL(u, window.location.href);
+                      const proto = o.protocol.toLowerCase();
+                      if (proto !== 'https:' && proto !== 'http:' && proto !== 'data:')
+                          return null;
+                      return o.href;
+                  } catch {
+                      return null;
+                  }
+              };
     async function displayTradeOpportunities(opportunities) {
         const grid = DOM.$('#send-trades-grid');
         if (!grid) return;
@@ -175,18 +209,18 @@
                         daysOwnedHtml = `<div class="user-stat-line">Owned Since: ${daysOwned}d</div>`;
                     }
                 }
-                const avatarUrl = String(opportunity.targetUser.avatarUrl || '');
-                const usernameForAttr = String(opportunity.targetUser.username ?? '');
-                const usernameForBody = String(opportunity.targetUser.username ?? '');
-                const targetUserIdRaw = String(opportunity.targetUserId ?? '');
-                const tradeIdRaw = String(opportunity.id ?? '');
-                const tradeNameRaw = String(opportunity.name ?? '');
+                const avatarUrlRaw = sUrl(String(opportunity.targetUser.avatarUrl || ''));
+                const usernameAttr = sAttr(opportunity.targetUser.username ?? '');
+                const usernameText = sHtml(opportunity.targetUser.username ?? '');
+                const targetUserIdAttr = sAttr(opportunity.targetUserId ?? '');
+                const tradeIdAttr = sAttr(opportunity.id ?? '');
+                const tradeNameText = sHtml(opportunity.name ?? '');
                 const fallbackImg =
                     'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg==';
-                const avatarHtml = avatarUrl
-                    ? `<img src="${avatarUrl}" alt="${usernameForAttr}" class="user-avatar-compact" style="opacity: 0.7;" onerror="this.src='${fallbackImg}'" />`
-                    : `<img src="${fallbackImg}" alt="${usernameForAttr}" class="user-avatar-compact" style="opacity: 0.7;" />`;
-                return `<div class="send-trade-card trade-card"><div class="send-trade-header"><div class="trade-info-compact"><div class="trade-title-compact">${tradeNameRaw}</div><div class="trade-target">→ ${usernameForBody}</div>${lastOnlineHtml}${daysOwnedHtml}</div><div class="header-right-section">${avatarHtml}</div></div><div class="trade-content-compact"><div class="trade-section-compact"><div class="section-title-compact">GIVE</div><div class="trade-items-compact">${givingItems}${robuxGiveHtml}</div></div><div class="trade-section-compact"><div class="section-title-compact">GET</div><div class="trade-items-compact">${receivingItems}${robuxGetHtml}</div></div></div><div class="send-trade-actions"><button class="btn btn-success btn-sm send-trade-btn" data-user-id="${targetUserIdRaw}" data-trade-id="${tradeIdRaw}">SEND</button><a href="https://www.rolimons.com/player/${targetUserIdRaw}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">PROFILE</a></div></div>`;
+                const avatarHtml = avatarUrlRaw
+                    ? `<img src="${sAttr(avatarUrlRaw)}" alt="${usernameAttr}" class="user-avatar-compact" style="opacity: 0.7;" data-fallback-img="1" />`
+                    : `<img src="${fallbackImg}" alt="${usernameAttr}" class="user-avatar-compact" style="opacity: 0.7;" />`;
+                return `<div class="send-trade-card trade-card"><div class="send-trade-header"><div class="trade-info-compact"><div class="trade-title-compact">${tradeNameText}</div><div class="trade-target">→ ${usernameText}</div>${lastOnlineHtml}${daysOwnedHtml}</div><div class="header-right-section">${avatarHtml}</div></div><div class="trade-content-compact"><div class="trade-section-compact"><div class="section-title-compact">GIVE</div><div class="trade-items-compact">${givingItems}${robuxGiveHtml}</div></div><div class="trade-section-compact"><div class="section-title-compact">GET</div><div class="trade-items-compact">${receivingItems}${robuxGetHtml}</div></div></div><div class="send-trade-actions"><button class="btn btn-success btn-sm send-trade-btn" data-user-id="${targetUserIdAttr}" data-trade-id="${tradeIdAttr}">SEND</button><a href="https://www.rolimons.com/player/${targetUserIdAttr}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">PROFILE</a></div></div>`;
             })
             .join('');
         const allItemIds = new Set();
@@ -223,6 +257,25 @@
         }
         Pagination.updatePaginationControls().catch(() => {});
     }
+    const FALLBACK_AVATAR_URL =
+        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg==';
+    document.addEventListener(
+        'error',
+        (e) => {
+            const t = e.target;
+            if (
+                t &&
+                t.tagName === 'IMG' &&
+                t.dataset &&
+                t.dataset.fallbackImg === '1' &&
+                t.src !== FALLBACK_AVATAR_URL
+            ) {
+                t.src = FALLBACK_AVATAR_URL;
+                t.dataset.fallbackImg = '';
+            }
+        },
+        true
+    );
     window.TradeDisplayOpportunities = {
         displayTradeOpportunities: displayTradeOpportunities,
     };

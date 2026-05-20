@@ -46,11 +46,42 @@
         if (grid._inventoryClickHandler) {
             grid.removeEventListener('click', grid._inventoryClickHandler);
         }
+        const sAttr = window.SecurityUtils
+            ? window.SecurityUtils.sanitizeAttribute
+            : (v) =>
+                  String(v ?? '')
+                      .replace(/&/g, '&amp;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+        const sHtml = window.SecurityUtils
+            ? window.SecurityUtils.sanitizeHtml
+            : (v) => {
+                  const d = document.createElement('div');
+                  d.textContent = String(v ?? '');
+                  return d.innerHTML;
+              };
         grid.innerHTML = items
-            .map(
-                (item, index) =>
-                    `\n            <div class="item-card ${item.isOnHold ? 'on-hold' : ''}" data-item="${item.name}" data-value="${item.value}" data-rap="${item.rap}" data-id="${item.id}" data-index="${index}" data-type="inventory" data-on-hold="${item.isOnHold || false}">\n                <div class="item-image">\n                    <div style="width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 11px; color: rgb(255, 255, 255); font-weight: 600; display: flex; background: #2a2d30; border-radius: 4px;">\n                        ${item.name.substring(0, 3).toUpperCase()}\n                    </div>\n                </div>\n                ${item.isOnHold ? '<div class="hold-indicator">🕒</div>' : ''}\n                <div class="item-name" title="${item.name}">${item.name}</div>\n                <div class="item-pricing">\n                    <div class="item-value rap-text">RAP ${item.rap.toLocaleString()}</div>\n                    <div class="item-rap val-text">VAL ${item.value.toLocaleString()}</div>\n                </div>\n            </div>\n        `
-            )
+            .map((item, index) => {
+                const name = sAttr(item.name);
+                const nameText = sHtml(item.name);
+                const initials = sHtml(String(item.name || '').substring(0, 3).toUpperCase());
+                return `
+            <div class="item-card ${item.isOnHold ? 'on-hold' : ''}" data-item="${name}" data-value="${sAttr(item.value)}" data-rap="${sAttr(item.rap)}" data-id="${sAttr(item.id)}" data-index="${index}" data-type="inventory" data-on-hold="${item.isOnHold || false}">
+                <div class="item-image">
+                    <div style="width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 11px; color: rgb(255, 255, 255); font-weight: 600; display: flex; background: #2a2d30; border-radius: 4px;">
+                        ${initials}
+                    </div>
+                </div>
+                ${item.isOnHold ? '<div class="hold-indicator">🕒</div>' : ''}
+                <div class="item-name" title="${name}">${nameText}</div>
+                <div class="item-pricing">
+                    <div class="item-value rap-text">RAP ${item.rap.toLocaleString()}</div>
+                    <div class="item-rap val-text">VAL ${item.value.toLocaleString()}</div>
+                </div>
+            </div>
+        `;
+            })
             .join('');
         grid._inventoryClickHandler = function (e) {
             const itemCard = e.target.closest('.item-card');
@@ -93,11 +124,41 @@
         if (grid._catalogClickHandler) {
             grid.removeEventListener('click', grid._catalogClickHandler);
         }
+        const sAttr = window.SecurityUtils
+            ? window.SecurityUtils.sanitizeAttribute
+            : (v) =>
+                  String(v ?? '')
+                      .replace(/&/g, '&amp;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+        const sHtml = window.SecurityUtils
+            ? window.SecurityUtils.sanitizeHtml
+            : (v) => {
+                  const d = document.createElement('div');
+                  d.textContent = String(v ?? '');
+                  return d.innerHTML;
+              };
         grid.innerHTML = items
-            .map(
-                (item, index) =>
-                    `\n            <div class="item-card" data-item="${item.name}" data-value="${item.value}" data-rap="${item.rap}" data-id="${item.id}" data-index="${index}" data-type="catalog" data-quantity="0">\n                <div class="item-image">\n                    <div style="width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 11px; color: rgb(255, 255, 255); font-weight: 600; display: flex; background: #2a2d30; border-radius: 4px;">\n                        ${item.name.substring(0, 3).toUpperCase()}\n                    </div>\n                </div>\n                <div class="item-name" title="${item.name}">${item.name}</div>\n                <div class="item-pricing">\n                    <div class="item-value rap-text">RAP ${item.rap.toLocaleString()}</div>\n                    <div class="item-rap val-text">VAL ${item.value.toLocaleString()}</div>\n                </div>\n            </div>\n        `
-            )
+            .map((item, index) => {
+                const name = sAttr(item.name);
+                const nameText = sHtml(item.name);
+                const initials = sHtml(String(item.name || '').substring(0, 3).toUpperCase());
+                return `
+            <div class="item-card" data-item="${name}" data-value="${sAttr(item.value)}" data-rap="${sAttr(item.rap)}" data-id="${sAttr(item.id)}" data-index="${index}" data-type="catalog" data-quantity="0">
+                <div class="item-image">
+                    <div style="width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 11px; color: rgb(255, 255, 255); font-weight: 600; display: flex; background: #2a2d30; border-radius: 4px;">
+                        ${initials}
+                    </div>
+                </div>
+                <div class="item-name" title="${name}">${nameText}</div>
+                <div class="item-pricing">
+                    <div class="item-value rap-text">RAP ${item.rap.toLocaleString()}</div>
+                    <div class="item-rap val-text">VAL ${item.value.toLocaleString()}</div>
+                </div>
+            </div>
+        `;
+            })
             .join('');
         grid._catalogClickHandler = function (e) {
             const itemCard = e.target.closest('.item-card');
@@ -241,11 +302,11 @@
                     });
                 }
             })
-            .catch((error) => {});
+            .catch(() => {});
     }
     function updateThumbnailInRealTime(grid, itemId, imageUrl) {
         const cards = grid.querySelectorAll(`[data-id="${itemId}"]`);
-        cards.forEach((card, index) => {
+        cards.forEach((card) => {
             let imageContainer = card.querySelector('.item-image');
             if (!imageContainer) {
                 imageContainer = card.querySelector('.item-icon');

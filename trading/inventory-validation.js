@@ -23,7 +23,6 @@
             const userInventory = await Inventory.getUserCollectibles(currentUserId);
             if (!userInventory || userInventory.length === 0) {
                 Storage.setAccount('autoTrades', []);
-                const pendingTrades = Storage.getAccount('pendingExtensionTrades', []);
                 Storage.setAccount('pendingExtensionTrades', []);
                 return;
             }

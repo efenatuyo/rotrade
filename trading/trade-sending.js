@@ -19,7 +19,6 @@
             }
         }
     }
-    const TradeValidator = window.TradeValidator || {};
     const TradeStorage = window.TradeStorage || {};
     function setupSendTradeButtons() {
         document.querySelectorAll('.send-trade-btn').forEach((btn) => {
@@ -117,7 +116,6 @@
                     btn.style.background = '#17a2b8';
                     try {
                         let tradeResult = null;
-                        let useAutoConfirmer = false;
                         if (window.AutoConfirmer) {
                             const autoConfirmerResult =
                                 await window.AutoConfirmer.sendTradeWithAutoConfirmer(
@@ -131,7 +129,6 @@
                                 tradeResult = {
                                     tradeId: autoConfirmerResult.tradeId,
                                 };
-                                useAutoConfirmer = true;
                             } else if (!autoConfirmerResult.useFallback) {
                                 e.target.dataset.trading = 'false';
                                 e.target.textContent = 'Cannot Trade';

@@ -1,84 +1,75 @@
 (function () {
     'use strict';
-    let statusCheckInterval = null;
-    function startTradeStatusMonitoring() {
-        if (statusCheckInterval) {
-            clearInterval(statusCheckInterval);
-        }
+    const STATUS_INTERVAL_MS = 30 * 1e3;
+    const UPDATE_INTERVAL_MS = 30 * 1e3;
+    function runStatusCheck() {
         if (window.checkRobloxTradeStatuses) {
             window.checkRobloxTradeStatuses().catch(() => {});
         }
-        statusCheckInterval = setInterval(() => {
-            if (window.checkRobloxTradeStatuses) {
-                window.checkRobloxTradeStatuses().catch(() => {});
+    }
+    function runAutoUpdate() {
+        if (window.checkRobloxTradeStatuses) {
+            window.checkRobloxTradeStatuses().catch(() => {});
+        }
+        const isAutoTradesPage =
+            document.body.classList.contains('path-auto-trades') ||
+            document.body.classList.contains('path-auto-trades-send');
+        if (!isAutoTradesPage) return;
+        const activeTab = window.RobloxSelectors
+            ? window.RobloxSelectors.find('tradeFilterChipActive')
+            : document.querySelector('.filter-btn.active');
+        if (!activeTab) return;
+        const filter = activeTab.getAttribute('data-filter');
+        switch (filter) {
+            case 'outbound':
+                if (typeof TradeLoading.loadOutboundTrades === 'function') {
+                    TradeLoading.loadOutboundTrades();
+                }
+                break;
+            case 'expired':
+                if (typeof TradeLoading.loadExpiredTrades === 'function') {
+                    TradeLoading.loadExpiredTrades();
+                }
+                break;
+            case 'completed':
+                if (typeof TradeLoading.loadCompletedTrades === 'function') {
+                    TradeLoading.loadCompletedTrades();
+                }
+                break;
+        }
+        setTimeout(() => {
+            const activeContainer = window.RobloxSelectors
+                ? window.RobloxSelectors.find('tradesGridVisible')
+                : document.querySelector('.trades-grid[style*="block"]');
+            if (activeContainer) {
+                const containerId = activeContainer.id;
+                if (
+                    typeof TradeDisplay &&
+                    TradeDisplay.loadEnhancedTradeItemThumbnails === 'function'
+                ) {
+                    TradeDisplay.loadEnhancedTradeItemThumbnails(containerId);
+                }
             }
-        }, 15 * 1e3);
-        if (window.tradeStatusIntervals) {
-            window.tradeStatusIntervals.add(statusCheckInterval);
+        }, 1e3);
+    }
+    function startTradeStatusMonitoring() {
+        runStatusCheck();
+        if (window.Scheduler) {
+            window.Scheduler.everyVisible('tradeStatusCheck', STATUS_INTERVAL_MS, runStatusCheck);
         } else {
-            window.tradeStatusIntervals = new Set([statusCheckInterval]);
+            const id = setInterval(runStatusCheck, STATUS_INTERVAL_MS);
+            window.tradeStatusIntervals = window.tradeStatusIntervals || new Set();
+            window.tradeStatusIntervals.add(id);
         }
     }
     function startAutoUpdateSystem() {
-        const UPDATE_INTERVAL = 15 * 1e3;
-        if (window.autoUpdateTimer) {
-            clearInterval(window.autoUpdateTimer);
-            if (window.tradeStatusIntervals) {
-                window.tradeStatusIntervals.delete(window.autoUpdateTimer);
-            }
+        if (window.Scheduler) {
+            window.Scheduler.everyVisible('autoUpdate', UPDATE_INTERVAL_MS, runAutoUpdate);
+        } else {
+            window.autoUpdateTimer = setInterval(runAutoUpdate, UPDATE_INTERVAL_MS);
+            window.tradeStatusIntervals = window.tradeStatusIntervals || new Set();
+            window.tradeStatusIntervals.add(window.autoUpdateTimer);
         }
-        window.autoUpdateTimer = setInterval(() => {
-            if (window.tradeStatusIntervals) {
-                window.tradeStatusIntervals.add(window.autoUpdateTimer);
-            } else {
-                window.tradeStatusIntervals = new Set([window.autoUpdateTimer]);
-            }
-            if (window.checkRobloxTradeStatuses) {
-                window.checkRobloxTradeStatuses().catch(() => {});
-            }
-            const isAutoTradesPage =
-                document.body.classList.contains('path-auto-trades') ||
-                document.body.classList.contains('path-auto-trades-send');
-            if (isAutoTradesPage) {
-                const activeTab = document.querySelector('.filter-btn.active');
-                if (activeTab) {
-                    const filter = activeTab.getAttribute('data-filter');
-                    switch (filter) {
-                        case 'outbound':
-                            if (typeof TradeLoading.loadOutboundTrades === 'function') {
-                                TradeLoading.loadOutboundTrades();
-                            }
-                            break;
-
-                        case 'expired':
-                            if (typeof TradeLoading.loadExpiredTrades === 'function') {
-                                TradeLoading.loadExpiredTrades();
-                            }
-                            break;
-
-                        case 'completed':
-                            if (typeof TradeLoading.loadCompletedTrades === 'function') {
-                                TradeLoading.loadCompletedTrades();
-                            }
-                            break;
-                    }
-                    setTimeout(() => {
-                        const activeContainer = document.querySelector(
-                            '.trades-grid[style*="block"]'
-                        );
-                        if (activeContainer) {
-                            const containerId = activeContainer.id;
-                            if (
-                                typeof TradeDisplay &&
-                                TradeDisplay.loadEnhancedTradeItemThumbnails === 'function'
-                            ) {
-                                TradeDisplay.loadEnhancedTradeItemThumbnails(containerId);
-                            }
-                        }
-                    }, 1e3);
-                }
-            }
-        }, UPDATE_INTERVAL);
     }
     window.TradeStatusMonitoring = {
         startTradeStatusMonitoring: startTradeStatusMonitoring,

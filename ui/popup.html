@@ -13,176 +13,331 @@
                 <p class="popup-logged-in" id="popup-logged-in" aria-live="polite"></p>
                 <p class="popup-hint">Open a Roblox tab to sync account-specific options.</p>
             </header>
+            <nav class="popup-tabs" role="tablist" aria-label="Settings sections">
+                <button
+                    type="button"
+                    class="popup-tab is-active"
+                    data-tab="trading"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="tab-panel-trading"
+                    id="tab-btn-trading"
+                >
+                    Trading
+                </button>
+                <button
+                    type="button"
+                    class="popup-tab"
+                    data-tab="display"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="tab-panel-display"
+                    id="tab-btn-display"
+                >
+                    Display
+                </button>
+                <button
+                    type="button"
+                    class="popup-tab"
+                    data-tab="notifications"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="tab-panel-notifications"
+                    id="tab-btn-notifications"
+                >
+                    Alerts
+                </button>
+                <button
+                    type="button"
+                    class="popup-tab"
+                    data-tab="security"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="tab-panel-security"
+                    id="tab-btn-security"
+                >
+                    Security
+                </button>
+            </nav>
             <div class="popup-scroll">
-                <section class="set-section">
-                    <h2 class="set-h2">Common owners</h2>
-                    <p class="set-desc">
-                        Parameters for finding users who own items you trade for.
-                    </p>
-                    <label class="set-label" for="maxOwnerDays">Max owner days</label>
-                    <input
-                        type="number"
-                        id="maxOwnerDays"
-                        class="set-input"
-                        min="8"
-                        max="999999999"
-                    />
-                    <small id="maxOwnerDays-error" class="set-field-error" hidden></small>
-                    <small id="maxOwnerDays-help" class="set-help"></small>
-                    <label class="set-label" for="lastOnlineDays">Last online days</label>
-                    <input type="number" id="lastOnlineDays" class="set-input" min="1" max="365" />
-                    <small id="lastOnlineDays-error" class="set-field-error" hidden></small>
-                    <small id="lastOnlineDays-help" class="set-help"></small>
-                </section>
-                <section class="set-section">
-                    <h2 class="set-h2">Trade history</h2>
-                    <p class="set-desc">How long sent trades are remembered.</p>
-                    <label class="set-label" for="tradeMemoryDays">Trade memory (days)</label>
-                    <input type="number" id="tradeMemoryDays" class="set-input" min="1" max="30" />
-                    <small id="tradeMemoryDays-error" class="set-field-error" hidden></small>
-                    <small id="tradeMemoryDays-help" class="set-help"></small>
-                    <button type="button" class="btn btn-danger" id="clear-trade-history">
-                        Clear sent trade history
-                    </button>
-                </section>
-                <section class="set-section">
-                    <h2 class="set-h2">Robux → USD</h2>
-                    <p class="set-desc">
-                        How many US dollars one thousand Robux is worth for estimates (trade totals,
-                        catalog USD rows, reseller listings). Default 4 is a common reference rate.
-                    </p>
-                    <label class="set-label" for="usdPer1kRobux">USD per 1,000 Robux</label>
-                    <input
-                        type="number"
-                        id="usdPer1kRobux"
-                        class="set-input"
-                        min="0.01"
-                        max="1000"
-                        step="0.01"
-                    />
-                    <small id="usdPer1kRobux-error" class="set-field-error" hidden></small>
-                    <small id="usdPer1kRobux-help" class="set-help"></small>
-                </section>
-                <section class="set-section">
-                    <h2 class="set-h2">Chart alerts</h2>
-                    <p class="set-desc">
-                        Yellow notes on trade detail use Rolimons chart data. Only applies when the
-                        relevant scan falls within the recency window.
-                    </p>
-                    <label class="set-label">
-                        <input type="checkbox" id="tradeDetailChartAlertsEnabled" />
-                        Enable chart alerts
-                    </label>
-                    <label class="set-label" for="tradeDetailChartRecencyDays"
-                        >Recency (days)</label
-                    >
-                    <input
-                        type="number"
-                        id="tradeDetailChartRecencyDays"
-                        class="set-input"
-                        min="1"
-                        max="365"
-                        step="1"
-                    />
-                    <small
-                        id="tradeDetailChartRecencyDays-error"
-                        class="set-field-error"
-                        hidden
-                    ></small>
-                    <small id="tradeDetailChartRecencyDays-help" class="set-help"></small>
-                    <label class="set-label" for="tradeDetailNewChartMinValue"
-                        >Min starting value (first chart row)</label
-                    >
-                    <input
-                        type="number"
-                        id="tradeDetailNewChartMinValue"
-                        class="set-input"
-                        min="0"
-                        max="999999999999"
-                        step="1000"
-                    />
-                    <small
-                        id="tradeDetailNewChartMinValue-error"
-                        class="set-field-error"
-                        hidden
-                    ></small>
-                    <small id="tradeDetailNewChartMinValue-help" class="set-help"></small>
-                    <label class="set-label" for="tradeDetailJumpMaxGapDays"
-                        >Max days between two scans (jump detection)</label
-                    >
-                    <input
-                        type="number"
-                        id="tradeDetailJumpMaxGapDays"
-                        class="set-input"
-                        min="0.25"
-                        max="30"
-                        step="0.25"
-                    />
-                    <small
-                        id="tradeDetailJumpMaxGapDays-error"
-                        class="set-field-error"
-                        hidden
-                    ></small>
-                    <small id="tradeDetailJumpMaxGapDays-help" class="set-help"></small>
-                    <label class="set-label" for="tradeDetailJumpMinPct"
-                        >Min value increase (%)</label
-                    >
-                    <input
-                        type="number"
-                        id="tradeDetailJumpMinPct"
-                        class="set-input"
-                        min="1"
-                        max="50000"
-                        step="1"
-                    />
-                    <small id="tradeDetailJumpMinPct-error" class="set-field-error" hidden></small>
-                    <small id="tradeDetailJumpMinPct-help" class="set-help"></small>
-                </section>
-                <section class="set-section">
-                    <h2 class="set-h2">Auto 2FA</h2>
-                    <p class="set-desc">
-                        Store your authenticator secret for auto-confirm when sending trades
-                        (encrypted).
-                    </p>
-                    <div class="twofa-box" id="twofa-secret-status">
-                        <div class="twofa-row">
-                            <div class="twofa-text">
-                                <div class="twofa-title">2FA secret</div>
-                                <div id="twofa-secret-status-text" class="twofa-line"></div>
-                                <div id="twofa-secret-status-message" class="twofa-msg"></div>
-                            </div>
-                            <div class="twofa-actions">
-                                <button
-                                    type="button"
-                                    class="btn btn-secondary"
-                                    id="set-twofa-secret"
-                                >
-                                    Set secret
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-danger"
-                                    id="reset-twofa-secret"
-                                    style="display: none"
-                                >
-                                    Reset
-                                </button>
+                <div
+                    class="tab-panel is-active"
+                    data-panel="trading"
+                    id="tab-panel-trading"
+                    role="tabpanel"
+                    aria-labelledby="tab-btn-trading"
+                >
+                    <section class="set-section">
+                        <h2 class="set-h2">Common owners</h2>
+                        <p class="set-desc">
+                            Parameters for finding users who own items you trade for.
+                        </p>
+                        <label class="set-label" for="maxOwnerDays">Max owner days</label>
+                        <input
+                            type="number"
+                            id="maxOwnerDays"
+                            class="set-input"
+                            min="8"
+                            max="999999999"
+                        />
+                        <small id="maxOwnerDays-error" class="set-field-error" hidden></small>
+                        <small id="maxOwnerDays-help" class="set-help"></small>
+                        <label class="set-label" for="lastOnlineDays">Last online days</label>
+                        <input
+                            type="number"
+                            id="lastOnlineDays"
+                            class="set-input"
+                            min="1"
+                            max="365"
+                        />
+                        <small id="lastOnlineDays-error" class="set-field-error" hidden></small>
+                        <small id="lastOnlineDays-help" class="set-help"></small>
+                    </section>
+                    <section class="set-section">
+                        <h2 class="set-h2">Trade history</h2>
+                        <p class="set-desc">How long sent trades are remembered.</p>
+                        <label class="set-label" for="tradeMemoryDays">Trade memory (days)</label>
+                        <input
+                            type="number"
+                            id="tradeMemoryDays"
+                            class="set-input"
+                            min="1"
+                            max="30"
+                        />
+                        <small id="tradeMemoryDays-error" class="set-field-error" hidden></small>
+                        <small id="tradeMemoryDays-help" class="set-help"></small>
+                        <button type="button" class="btn btn-danger" id="clear-trade-history">
+                            Clear sent trade history
+                        </button>
+                    </section>
+                </div>
+                <div
+                    class="tab-panel"
+                    data-panel="display"
+                    id="tab-panel-display"
+                    role="tabpanel"
+                    aria-labelledby="tab-btn-display"
+                    hidden
+                >
+                    <section class="set-section">
+                        <h2 class="set-h2">Trade list</h2>
+                        <p class="set-desc">
+                            Per-row decorations on the Roblox trade list pages (inbound, outbound,
+                            completed, inactive).
+                        </p>
+                        <label class="set-label set-label--toggle">
+                            <span class="set-toggle-text">Show value box on each trade row</span>
+                            <span class="set-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="tradeListValueBoxEnabled"
+                                    class="set-toggle-input"
+                                />
+                                <span class="set-toggle-slider"></span>
+                            </span>
+                        </label>
+                        <small id="tradeListValueBoxEnabled-help" class="set-help"
+                            >Adds a corner box showing your-side total vs their-side total
+                            (color-coded glow bar).</small
+                        >
+                    </section>
+                    <section class="set-section">
+                        <h2 class="set-h2">Trade summary</h2>
+                        <p class="set-desc">
+                            Win/loss chips shown between trade offers on a trade detail.
+                        </p>
+                        <label class="set-label set-label--toggle">
+                            <span class="set-toggle-text">Show win/loss stats</span>
+                            <span class="set-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="showTradeSummaryWinLoss"
+                                    class="set-toggle-input"
+                                />
+                                <span class="set-toggle-slider"></span>
+                            </span>
+                        </label>
+                        <small id="showTradeSummaryWinLoss-help" class="set-help"
+                            >Show the RAP, Value and $ chips between offers on the trade
+                            detail.</small
+                        >
+                    </section>
+                    <section class="set-section">
+                        <h2 class="set-h2">Roli badges</h2>
+                        <p class="set-desc">
+                            Show Rolimons badges (Rolibadges) next to the user info on a Roblox
+                            profile.
+                        </p>
+                        <label class="set-label set-label--toggle">
+                            <span class="set-toggle-text">Show roli badges on profile</span>
+                            <span class="set-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="userProfileBadgesEnabled"
+                                    class="set-toggle-input"
+                                />
+                                <span class="set-toggle-slider"></span>
+                            </span>
+                        </label>
+                        <small id="userProfileBadgesEnabled-help" class="set-help"
+                            >When off, no badges are added to the user profile header.</small
+                        >
+                    </section>
+                    <section class="set-section">
+                        <h2 class="set-h2">User profile metric</h2>
+                        <p class="set-desc">
+                            Which Rolimons number to show on user profile pages (next to the
+                            friend/follower row).
+                        </p>
+                        <label class="set-label" for="profileMetric">Show on user profile</label>
+                        <select id="profileMetric" class="set-input">
+                            <option value="value">Value</option>
+                            <option value="rap">RAP</option>
+                        </select>
+                        <small id="profileMetric-help" class="set-help"
+                            >Pick which total appears as the inventory chip on
+                            /users/&lt;id&gt;/profile.</small
+                        >
+                    </section>
+                    <section class="set-section">
+                        <h2 class="set-h2">Robux → USD</h2>
+                        <p class="set-desc">
+                            How many US dollars one thousand Robux is worth for estimates (trade
+                            totals, catalog USD rows, reseller listings). Default 4 is a common
+                            reference rate.
+                        </p>
+                        <label class="set-label set-label--toggle">
+                            <span class="set-toggle-text">Show USD values</span>
+                            <span class="set-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="usdValuesEnabled"
+                                    class="set-toggle-input"
+                                />
+                                <span class="set-toggle-slider"></span>
+                            </span>
+                        </label>
+                        <small id="usdValuesEnabled-help" class="set-help"
+                            >When off, USD rows are hidden everywhere (catalog, trade detail,
+                            partner inventory).</small
+                        >
+                        <label class="set-label" for="usdPer1kRobux">USD per 1,000 Robux</label>
+                        <input
+                            type="number"
+                            id="usdPer1kRobux"
+                            class="set-input"
+                            min="0.01"
+                            max="1000"
+                            step="0.01"
+                        />
+                        <small id="usdPer1kRobux-error" class="set-field-error" hidden></small>
+                        <small id="usdPer1kRobux-help" class="set-help"></small>
+                    </section>
+                </div>
+                <div
+                    class="tab-panel"
+                    data-panel="notifications"
+                    id="tab-panel-notifications"
+                    role="tabpanel"
+                    aria-labelledby="tab-btn-notifications"
+                    hidden
+                >
+                    <section class="set-section">
+                        <h2 class="set-h2">Notifications</h2>
+                        <p class="set-desc">
+                            Toast notifications and sound when trades change status (accepted,
+                            countered, declined, expired).
+                        </p>
+                        <label class="set-label set-label--toggle">
+                            <span class="set-toggle-text">Enable trade notifications</span>
+                            <span class="set-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="notificationsEnabled"
+                                    class="set-toggle-input"
+                                />
+                                <span class="set-toggle-slider"></span>
+                            </span>
+                        </label>
+                        <small id="notificationsEnabled-help" class="set-help"
+                            >When off, no toast or sound is shown for trade status changes.</small
+                        >
+                        <label class="set-label set-label--toggle">
+                            <span class="set-toggle-text">Also show desktop notifications</span>
+                            <span class="set-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="desktopNotificationsEnabled"
+                                    class="set-toggle-input"
+                                />
+                                <span class="set-toggle-slider"></span>
+                            </span>
+                        </label>
+                        <small id="desktopNotificationsEnabled-help" class="set-help"
+                            >Native OS notifications even when the Roblox tab isn't focused.
+                            Requires the Notifications permission (you'll be prompted the first
+                            time you enable this).</small
+                        >
+                    </section>
+                </div>
+                <div
+                    class="tab-panel"
+                    data-panel="security"
+                    id="tab-panel-security"
+                    role="tabpanel"
+                    aria-labelledby="tab-btn-security"
+                    hidden
+                >
+                    <section class="set-section">
+                        <h2 class="set-h2">Auto 2FA</h2>
+                        <p class="set-desc">
+                            Store your authenticator secret for auto-confirm when sending trades
+                            (encrypted).
+                        </p>
+                        <div class="twofa-box" id="twofa-secret-status">
+                            <div class="twofa-row">
+                                <div class="twofa-text">
+                                    <div class="twofa-title">2FA secret</div>
+                                    <div id="twofa-secret-status-text" class="twofa-line"></div>
+                                    <div id="twofa-secret-status-message" class="twofa-msg"></div>
+                                </div>
+                                <div class="twofa-actions">
+                                    <button
+                                        type="button"
+                                        class="btn btn-secondary"
+                                        id="set-twofa-secret"
+                                    >
+                                        Set secret
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-danger"
+                                        id="reset-twofa-secret"
+                                        style="display: none"
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </section>
+                    </section>
+                </div>
+            </div>
+            <footer class="popup-actions">
                 <div class="set-actions">
-                    <button type="button" class="btn btn-primary" id="save-settings">Save</button>
+                    <span
+                        id="settings-status"
+                        class="settings-status settings-status--idle"
+                        aria-live="polite"
+                    ></span>
                     <button type="button" class="btn btn-muted" id="reset-settings">
                         Defaults
                     </button>
                 </div>
-                <div class="popup-footer">
-                    <button type="button" class="btn btn-link" id="open-auto-trades">
-                        Open auto-trades
-                    </button>
-                </div>
-            </div>
+                <button type="button" class="btn btn-link" id="open-auto-trades">
+                    Open auto-trades
+                </button>
+            </footer>
         </div>
         <script src="../core/storage.js"></script>
         <script src="../core/utils/authenticator.js"></script>

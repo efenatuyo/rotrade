@@ -37,7 +37,12 @@
         window.addEventListener('resize', () => {
             setTimeout(updateContainerMargins, 100);
         });
-        setInterval(updateContainerMargins, 1e3);
+        if (window.Scheduler && window.Scheduler.everyVisible) {
+            window.Scheduler.everyVisible('marginsBackupPoll', 1e3, updateContainerMargins);
+        } else {
+            // eslint-disable-next-line no-restricted-syntax -- Scheduler-unavailable fallback
+            setInterval(updateContainerMargins, 1e3);
+        }
     }
     window.ContentMargins = {
         updateContainerMargins: updateContainerMargins,

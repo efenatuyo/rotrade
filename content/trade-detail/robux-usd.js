@@ -1,31 +1,37 @@
 (function () {
     'use strict';
-    let robuxUsdPer1kCache = null;
+    let cache = null;
     function invalidateCache() {
-        robuxUsdPer1kCache = null;
+        cache = null;
     }
     function loadSettings() {
         return new Promise(function (resolve) {
-            if (robuxUsdPer1kCache !== null) {
-                resolve(robuxUsdPer1kCache);
+            if (cache !== null) {
+                resolve(cache);
                 return;
             }
             try {
                 chrome.storage.local.get(['rotradeSettings'], function (r) {
                     if (chrome.runtime.lastError) {
-                        robuxUsdPer1kCache = 4;
-                        resolve(4);
+                        cache = {
+                            per1k: 4,
+                            enabled: true,
+                            showTradeSummaryWinLoss: true,
+                        };
+                        resolve(cache);
                         return;
                     }
-                    const v = r && r.rotradeSettings && r.rotradeSettings.usdPer1kRobux;
-                    const n = parseFloat(v);
+                    const s = (r && r.rotradeSettings) || {};
+                    const n = parseFloat(s.usdPer1kRobux);
                     const per1k = isFinite(n) && n > 0 ? n : 4;
-                    robuxUsdPer1kCache = per1k;
-                    resolve(per1k);
+                    const enabled = s.usdValuesEnabled !== false;
+                    const showTradeSummaryWinLoss = s.showTradeSummaryWinLoss !== false;
+                    cache = { per1k, enabled, showTradeSummaryWinLoss };
+                    resolve(cache);
                 });
             } catch {
-                robuxUsdPer1kCache = 4;
-                resolve(4);
+                cache = { per1k: 4, enabled: true, showTradeSummaryWinLoss: true };
+                resolve(cache);
             }
         });
     }
@@ -34,6 +40,15 @@
             typeof usdPer1k === 'number' && isFinite(usdPer1k) && usdPer1k > 0 ? usdPer1k : 4;
         return robux * (per1k / 1e3);
     }
+    try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+            chrome.storage.onChanged.addListener(function (changes, areaName) {
+                if (areaName === 'local' && changes && changes.rotradeSettings) {
+                    invalidateCache();
+                }
+            });
+        }
+    } catch {}
     window.TradeDetailRobuxUsd = {
         invalidateCache: invalidateCache,
         loadSettings: loadSettings,

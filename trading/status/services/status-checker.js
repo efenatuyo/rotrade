@@ -106,7 +106,7 @@
                 }
             }
             if (!foundInList) {
-                for (const [statusId, status] of tradeStatusMap.entries()) {
+                for (const [statusId] of tradeStatusMap.entries()) {
                     if (tradeIdsMatch(tradeIdStr, statusId)) {
                         foundInList = true;
                         break;
@@ -154,7 +154,7 @@
                 }
             }
             if (!isInList) {
-                for (const [statusId, status] of tradeStatusMap.entries()) {
+                for (const [statusId] of tradeStatusMap.entries()) {
                     if (tradeIdsMatch(tradeInfo.id, statusId)) {
                         isInList = true;
                         break;
@@ -172,7 +172,7 @@
             pendingTradesMap: pendingTradesMap,
         };
     }
-    function createStatusFoundCallback(tradeStatusMap, pendingTradesMap) {
+    function createStatusFoundCallback(tradeStatusMap, _pendingTradesMap) {
         return async (trade, status) => {
             const tradeNorm = normalizeTradeId(trade.id);
             if (tradeNorm) {

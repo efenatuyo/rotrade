@@ -1,6 +1,20 @@
 (function () {
     'use strict';
+    const REQUIRED_GLOBALS = [
+        'Storage',
+        'DOM',
+        'API',
+        'Utils',
+        'Routing',
+        'RobloxSelectors',
+        'Scheduler',
+        'ModuleRegistry',
+        'BridgeUtils',
+    ];
     function init() {
+        if (window.ModuleRegistry && window.ModuleRegistry.requireGlobals) {
+            window.ModuleRegistry.requireGlobals(REQUIRED_GLOBALS);
+        }
         if (window.ContentStyles && window.ContentStyles.injectStyles) {
             window.ContentStyles.injectStyles();
         }
@@ -34,17 +48,29 @@
                 window.migrateTradesForRobux();
             }
         });
-        const observer = new MutationObserver(() => {
-            if (window.addAutoTradesTab) {
-                window.addAutoTradesTab();
-            }
+        function runNavInject() {
+            if (window.addAutoTradesTab) window.addAutoTradesTab();
+        }
+        function runProofsInject() {
+            const path = window.location.pathname;
+            const normalized = window.Routing ? window.Routing.normalizePath(path) : path;
+            const onTradesList = normalized === '/trades';
+            const onUserTrade = /^\/users\/\d+\/trade\/?$/.test(normalized);
+            if (!onTradesList && !onUserTrade) return;
             if (window.ProofsLink && window.ProofsLink.addProofsLinkToItems) {
                 window.ProofsLink.addProofsLinkToItems();
             }
-        });
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
+            if (onTradesList && window.TradeListValues && window.TradeListValues.refresh) {
+                window.TradeListValues.refresh();
+            }
+        }
+        if (window.Scheduler) {
+            window.Scheduler.onSidebarMutation(runNavInject);
+            window.Scheduler.onBodyMutation(runProofsInject);
+        }
+        window.addEventListener('popstate', () => {
+            runNavInject();
+            runProofsInject();
         });
         if (window.ProofsLink && window.ProofsLink.addProofsLinkToItems) {
             window.ProofsLink.addProofsLinkToItems();

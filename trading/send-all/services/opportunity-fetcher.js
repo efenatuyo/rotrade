@@ -106,10 +106,6 @@
             const yourR = trade.robuxGive || 0;
             const theirR = trade.robuxGet || 0;
             const oldSentTrades = new Set(Storage.getAccount('sentTrades', []));
-            const history = Trades.getSentTradeHistory();
-            const now = Date.now();
-            const expiryMs = settings.tradeMemoryDays * 24 * 60 * 60 * 1e3;
-            const validHistory = history.filter((entry) => now - entry.timestamp < expiryMs);
             const freshOwners = [];
             for (const userId of userIds) {
                 if (shouldStopCheck()) break;

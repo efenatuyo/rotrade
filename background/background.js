@@ -28,7 +28,15 @@ importScripts('handlers/thumbnails.js');
 
 importScripts('handlers/proofs.js');
 
+importScripts('handlers/trade-history.js');
+
 importScripts('handlers/roautotrade-user-stats.js');
+
+importScripts('handlers/rolimons-player-info.js');
+
+importScripts('handlers/desktop-notification.js');
+
+importScripts('handlers/password-store.js');
 
 let tradeNotificationClaimChain = Promise.resolve();
 
@@ -79,10 +87,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return handleFetchThumbnail(request, sendResponse);
     } else if (request.action === 'fetchProofs') {
         return handleFetchProofs(request, sendResponse);
+    } else if (request.action === 'fetchTradeHistory') {
+        return handleFetchTradeHistory(request, sendResponse);
     } else if (request.action === 'fetchRolautotradeUserStats') {
         return handleFetchRolautotradeUserStats(request, sendResponse);
     } else if (request.action === 'fetchRolautotradeUserPreferences') {
         return handleFetchRolautotradeUserPreferences(request, sendResponse);
+    } else if (request.action === 'fetchRolimonsPlayerInfo') {
+        return handleFetchRolimonsPlayerInfo(request, sendResponse);
+    } else if (request.action === 'showDesktopNotification') {
+        return handleShowDesktopNotification(request, sendResponse);
     } else if (request.action === 'clearAccountCaches') {
         if (commonOwnersCache && commonOwnersCache.map) {
             commonOwnersCache.map.clear();
@@ -100,5 +114,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.action === 'claimTradeNotification') {
         claimTradeNotification(request.accountId, request.notificationKey).then(sendResponse);
         return true;
+    } else if (request.action === 'passwordStore.set') {
+        return handleSetPassword(request, sender, sendResponse);
+    } else if (request.action === 'passwordStore.get') {
+        return handleGetPassword(request, sender, sendResponse);
+    } else if (request.action === 'passwordStore.clear') {
+        return handleClearPassword(request, sender, sendResponse);
+    } else if (request.action === 'passwordStore.clearAll') {
+        return handleClearAllPasswords(request, sender, sendResponse);
     }
 });

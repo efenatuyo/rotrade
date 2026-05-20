@@ -1,16 +1,25 @@
 (function () {
     'use strict';
+    const {
+        formatUsdAmountDisplay,
+        formatRolimonsValueDisplay,
+        rolimonsValueFromItemArray,
+        rolimonsRapFromItemArray,
+    } = window.TradeDetailFormatters || {};
+    const {
+        extractItemIdFromCard,
+        collectItemIdCandidates,
+        resolveItemIdPair,
+        extractItemNameFromCard,
+        classifyOfferHeader,
+        findPartnerUserLink,
+        extractPartnerUsername,
+    } = window.TradeDetailParsers || {};
     const DEBOUNCE_MS = 80;
-    const PARTNER_INV_DEBOUNCE_MS = 0;
     let debounceTimer = null;
     let lastSerialized = '';
-    let partnerInventoryRequestSeq = 0;
-    let partnerInventoryTimer = null;
-    let partnerInventoryPendingPayload = null;
     let rolimonItemsRawCache = null;
     let rolimonItemsRawPromise = null;
-    let chartAlertSettingsCache = null;
-    let chartAlertSettingsPromise = null;
     const roautotradeUserStatsInflight = new Map();
     const roautotradeUserStatsResolved = new Map();
     const roautotradeUserPrefsInflight = new Map();
@@ -23,23 +32,7 @@
     let usdInjectSeq = 0;
     let catalogAugmentSeq = 0;
     let catalogDebounceTimer = null;
-    let lastPartnerInvPayloadKey = '';
     let suppressObserverSchedule = false;
-    function partnerInvPayloadKey(payload) {
-        if (!payload || !payload.partner) {
-            return '';
-        }
-        try {
-            return JSON.stringify({
-                u: payload.partner.userId,
-                t: payload.tab || '',
-                g: payload.given || [],
-                r: payload.received || [],
-            });
-        } catch {
-            return '';
-        }
-    }
     function parseRobuxFromResellerPriceContainer(priceContainer) {
         if (!priceContainer) {
             return null;
@@ -59,48 +52,50 @@
         const per1k =
             typeof usdPer1k === 'number' && isFinite(usdPer1k) && usdPer1k > 0 ? usdPer1k : 4;
         const seen = new Set();
-        const selectorGroups = [
-            '#asset-resale-data-container .reseller-price-container',
-            'asset-resale-pane .reseller-price-container',
-            '#resellers .reseller-price-container',
-            '.resellers .reseller-price-container',
-        ];
-        selectorGroups.forEach(function (sel) {
-            document.querySelectorAll(sel).forEach(function (priceContainer) {
-                if (seen.has(priceContainer)) {
-                    return;
+        const containers = window.RobloxSelectors
+            ? window.RobloxSelectors.findAll('resellerPriceContainer')
+            : Array.from(
+                  document.querySelectorAll(
+                      '#asset-resale-data-container .reseller-price-container,' +
+                          'asset-resale-pane .reseller-price-container,' +
+                          '#resellers .reseller-price-container,' +
+                          '.resellers .reseller-price-container'
+                  )
+              );
+        containers.forEach(function (priceContainer) {
+            if (seen.has(priceContainer)) {
+                return;
+            }
+            seen.add(priceContainer);
+            const robux = parseRobuxFromResellerPriceContainer(priceContainer);
+            if (robux === null) {
+                return;
+            }
+            const usd = window.TradeDetailRobuxUsd.robuxAmountToUsd(robux, per1k);
+            const display = '$' + formatUsdAmountDisplay(usd);
+            const robuxSpan = priceContainer.querySelector('.text-robux');
+            if (!robuxSpan || !robuxSpan.parentNode) {
+                return;
+            }
+            let stack = priceContainer.querySelector('.rotrade-reseller-price-stack');
+            if (!stack) {
+                stack = document.createElement('span');
+                stack.className = 'rotrade-reseller-price-stack';
+                robuxSpan.parentNode.insertBefore(stack, robuxSpan);
+                stack.appendChild(robuxSpan);
+            }
+            let line = stack.querySelector('[data-rotrade-reseller-usd]');
+            if (line) {
+                if (line.textContent !== display) {
+                    line.textContent = display;
                 }
-                seen.add(priceContainer);
-                const robux = parseRobuxFromResellerPriceContainer(priceContainer);
-                if (robux === null) {
-                    return;
-                }
-                const usd = window.TradeDetailRobuxUsd.robuxAmountToUsd(robux, per1k);
-                const display = '$' + formatUsdAmountDisplay(usd);
-                const robuxSpan = priceContainer.querySelector('.text-robux');
-                if (!robuxSpan || !robuxSpan.parentNode) {
-                    return;
-                }
-                let stack = priceContainer.querySelector('.rotrade-reseller-price-stack');
-                if (!stack) {
-                    stack = document.createElement('span');
-                    stack.className = 'rotrade-reseller-price-stack';
-                    robuxSpan.parentNode.insertBefore(stack, robuxSpan);
-                    stack.appendChild(robuxSpan);
-                }
-                let line = stack.querySelector('[data-rotrade-reseller-usd]');
-                if (line) {
-                    if (line.textContent !== display) {
-                        line.textContent = display;
-                    }
-                    return;
-                }
-                line = document.createElement('div');
-                line.className = 'rotrade-reseller-usd-at-rate';
-                line.setAttribute('data-rotrade-reseller-usd', '1');
-                line.textContent = display;
-                stack.appendChild(line);
-            });
+                return;
+            }
+            line = document.createElement('div');
+            line.className = 'rotrade-reseller-usd-at-rate';
+            line.setAttribute('data-rotrade-reseller-usd', '1');
+            line.textContent = display;
+            stack.appendChild(line);
         });
     }
     function isSendTradeMode() {
@@ -125,456 +120,15 @@
             }, 0);
         }
     }
-    function extractItemIdFromCard(card) {
-        if (window.ProofsLinkExtractor && window.ProofsLinkExtractor.extractItemId) {
-            const id = window.ProofsLinkExtractor.extractItemId(card);
-            if (id) {
-                return id;
-            }
-        }
-        const thumb =
-            card.querySelector('.thumbnail-2d-container[thumbnail-target-id]') ||
-            card.querySelector('thumbnail-2d[thumbnail-target-id]');
-        if (thumb) {
-            const id = thumb.getAttribute('thumbnail-target-id');
-            if (id) {
-                return id;
-            }
-        }
-        const catalog = card.querySelector('a[href*="/catalog/"]');
-        if (catalog) {
-            const href = catalog.getAttribute('href') || catalog.getAttribute('ng-href') || '';
-            const m = href.match(/\/catalog\/(\d+)/i);
-            if (m) {
-                return m[1];
-            }
-        }
-        const bundle = card.querySelector('a[href*="/bundles/"]');
-        if (bundle) {
-            const href = bundle.getAttribute('href') || bundle.getAttribute('ng-href') || '';
-            const m = href.match(/\/bundles\/(\d+)/i);
-            if (m) {
-                return m[1];
-            }
-        }
-        return null;
-    }
-    function collectNumericAttributeCandidates(card) {
-        const out = [];
-        const container = card.querySelector('.item-card-container');
-        if (!container) {
-            return out;
-        }
-        for (let i = 0; i < container.attributes.length; i++) {
-            const v = container.attributes[i].value;
-            if (/^\d{10,}$/.test(v)) {
-                out.push(v);
-            }
-        }
-        return out;
-    }
-    function collectItemIdCandidates(card) {
-        const primary = extractItemIdFromCard(card);
-        const list = [];
-        if (primary) {
-            list.push(String(primary).trim());
-        }
-        list.push.apply(list, collectNumericAttributeCandidates(card));
-        const seen = new Set();
-        const uniq = [];
-        for (let i = 0; i < list.length; i++) {
-            const x = list[i];
-            if (!seen.has(x)) {
-                seen.add(x);
-                uniq.push(x);
-            }
-        }
-        return uniq;
-    }
-    function resolveItemIdPair(card) {
-        const candidates = collectItemIdCandidates(card);
-        if (candidates.length === 0) {
-            return null;
-        }
-        const normalize =
-            window.TradeItemIdAliases && window.TradeItemIdAliases.normalizeTradeItemId
-                ? window.TradeItemIdAliases.normalizeTradeItemId.bind(window.TradeItemIdAliases)
-                : function (x) {
-                      return String(x).trim();
-                  };
-        for (let i = 0; i < candidates.length; i++) {
-            const c = candidates[i];
-            const n = normalize(c);
-            if (n !== c) {
-                return {
-                    rawItemId: c,
-                    itemId: n,
-                };
-            }
-        }
-        const main = candidates[0];
-        return {
-            rawItemId: main,
-            itemId: normalize(main),
-        };
-    }
-    function extractItemNameFromCard(card) {
-        if (window.ProofsLinkExtractor && window.ProofsLinkExtractor.extractItemName) {
-            const name = window.ProofsLinkExtractor.extractItemName(card);
-            if (name) {
-                return name;
-            }
-        }
-        const nameEl = card.querySelector('.item-card-name');
-        if (nameEl) {
-            const t = (nameEl.textContent || nameEl.getAttribute('title') || '').trim();
-            if (t) {
-                return t;
-            }
-        }
-        return null;
-    }
-    function classifyOfferHeader(headerText) {
-        const t = (headerText || '').toLowerCase();
-        if (t.includes('receive')) {
-            return 'received';
-        }
-        if (t.includes('give') || /\bgave\b/.test(t)) {
-            return 'given';
-        }
-        return 'unknown';
-    }
-    function findPartnerUserLink(detail) {
-        const header = detail.querySelector('h2.trades-header-nowrap');
-        const scope = header || detail;
-        const direct =
-            scope.querySelector('a.paired-name[href*="/users/"]') ||
-            scope.querySelector('a[href*="/users/"][href*="/profile"]');
-        if (direct) {
-            return direct;
-        }
-        const anyUser = detail.querySelectorAll('a[href*="/users/"]');
-        for (let i = 0; i < anyUser.length; i++) {
-            const h = anyUser[i].getAttribute('href') || anyUser[i].getAttribute('ng-href') || '';
-            if (/\/users\/\d+/.test(h) && !h.includes('rolimons.com')) {
-                return anyUser[i];
-            }
-        }
-        return null;
-    }
-    function extractPartnerUsername(partnerLink) {
-        const raw = (partnerLink.innerText || partnerLink.textContent || '')
-            .trim()
-            .replace(/\s+/g, ' ');
-        if (!raw) {
-            return undefined;
-        }
-        const atIdx = raw.lastIndexOf('@');
-        if (atIdx !== -1) {
-            const afterAt = raw.slice(atIdx + 1).trim();
-            if (afterAt) {
-                return afterAt;
-            }
-        }
-        return raw;
-    }
     function clearRolautotradePageCaches() {
         roautotradeUserStatsInflight.clear();
         roautotradeUserStatsResolved.clear();
         rolimonItemsRawCache = null;
         rolimonItemsRawPromise = null;
-        lastPartnerInvPayloadKey = '';
     }
     if (typeof window !== 'undefined' && !window.__rotradeTradeDetailPagehideBound) {
         window.__rotradeTradeDetailPagehideBound = true;
         window.addEventListener('pagehide', clearRolautotradePageCaches);
-    }
-    function countCopiesInScannedAssetEntry(entry) {
-        if (!Array.isArray(entry)) {
-            return 0;
-        }
-        let n = 0;
-        for (let i = 0; i < entry.length; i++) {
-            const group = entry[i];
-            if (!Array.isArray(group)) {
-                continue;
-            }
-            for (let j = 0; j < group.length; j++) {
-                const row = group[j];
-                if (row && typeof row === 'object' && row.uaid != null) {
-                    n++;
-                }
-            }
-        }
-        return n;
-    }
-    function totalCollectibleCountFromScanned(scanned) {
-        if (!scanned || typeof scanned !== 'object') {
-            return 0;
-        }
-        let n = 0;
-        for (const assetId of Object.keys(scanned)) {
-            n += countCopiesInScannedAssetEntry(scanned[assetId]);
-        }
-        return n;
-    }
-    function formatCollectiblesPhrase(count) {
-        const c = Math.round(Number(count));
-        if (!isFinite(c) || c < 0) {
-            return '— collectibles';
-        }
-        if (c === 1) {
-            return '1 collectible';
-        }
-        return String(c) + ' collectibles';
-    }
-    function totalValueFromScannedPlayerAssets(scanned, rolimonData) {
-        let total = 0;
-        if (!scanned || typeof scanned !== 'object' || !rolimonData) {
-            return 0;
-        }
-        const normalizeAssetId =
-            window.TradeItemIdAliases && window.TradeItemIdAliases.normalizeTradeItemId
-                ? window.TradeItemIdAliases.normalizeTradeItemId.bind(window.TradeItemIdAliases)
-                : function (x) {
-                      return x == null || x === '' ? null : String(x).trim();
-                  };
-        for (const assetId of Object.keys(scanned)) {
-            const count = countCopiesInScannedAssetEntry(scanned[assetId]);
-            if (count === 0) {
-                continue;
-            }
-            const canonical = normalizeAssetId(assetId) || String(assetId);
-            const rolimonItem =
-                rolimonData[canonical] ||
-                rolimonData[String(canonical)] ||
-                rolimonData[Number(canonical)] ||
-                rolimonData[assetId] ||
-                rolimonData[String(assetId)] ||
-                rolimonData[Number(assetId)];
-            if (rolimonItem && Array.isArray(rolimonItem) && rolimonItem.length > 4) {
-                const value = Number(rolimonItem[4]) || 0;
-                total += value * count;
-            }
-        }
-        return Math.round(total);
-    }
-    function formatCompactInventoryValue(num) {
-        const n = Math.round(Number(num));
-        if (!isFinite(n)) {
-            return '';
-        }
-        const sign = n < 0 ? '-' : '';
-        const v = Math.abs(n);
-        if (v < 1e3) {
-            return sign + String(v);
-        }
-        if (v < 1e6) {
-            const k = v / 1e3;
-            const s =
-                v >= 1e4
-                    ? String(Math.round(k))
-                    : String(Math.round(k * 10) / 10).replace(/\.0$/, '');
-            return sign + s + 'K';
-        }
-        if (v < 1e9) {
-            const m = v / 1e6;
-            const s =
-                v >= 1e7
-                    ? String(Math.round(m))
-                    : String(Math.round(m * 10) / 10).replace(/\.0$/, '');
-            return sign + s + 'M';
-        }
-        const b = v / 1e9;
-        return sign + String(Math.round(b * 10) / 10).replace(/\.0$/, '') + 'B';
-    }
-    function scaleFontSizeSmaller(pxStr, factor) {
-        const m = /^([\d.]+)px$/.exec(String(pxStr || '').trim());
-        if (!m) {
-            return pxStr;
-        }
-        const n = Math.round(parseFloat(m[1]) * factor * 10) / 10;
-        return n + 'px';
-    }
-    function formatPartnerValueLine(amountCompact, mode, collectiblesCount) {
-        if (mode === 'loading') {
-            return 'User has … value | … collectibles';
-        }
-        if (mode === 'error') {
-            return 'User has — value | — collectibles';
-        }
-        const amt = amountCompact ? String(amountCompact) : '—';
-        const col =
-            collectiblesCount !== undefined && collectiblesCount !== null
-                ? formatCollectiblesPhrase(collectiblesCount)
-                : '— collectibles';
-        return 'User has ' + amt + ' value | ' + col;
-    }
-    function normalizeChartData(chartData) {
-        if (!Array.isArray(chartData) || chartData.length === 0) {
-            return [];
-        }
-        return chartData
-            .filter(function (p) {
-                return p && typeof p.nominal_scan_time === 'number';
-            })
-            .slice()
-            .sort(function (a, b) {
-                return a.nominal_scan_time - b.nominal_scan_time;
-            });
-    }
-    function getTradeDetailChartAlertDefaults() {
-        return {
-            tradeDetailChartAlertsEnabled: true,
-            tradeDetailChartRecencyDays: 30,
-            tradeDetailNewChartMinValue: 2e5,
-            tradeDetailJumpMaxGapDays: 3,
-            tradeDetailJumpMinPct: 1e3,
-        };
-    }
-    function clampChartNum(n, lo, hi) {
-        if (!isFinite(n)) {
-            return lo;
-        }
-        return Math.max(lo, Math.min(hi, n));
-    }
-    function resolveChartAlertSettingsFromMerged(merged) {
-        const d = getTradeDetailChartAlertDefaults();
-        const m = Object.assign({}, d, merged || {});
-        const enabled = m.tradeDetailChartAlertsEnabled !== false;
-        const recDays = clampChartNum(Number(m.tradeDetailChartRecencyDays) || 30, 1, 365);
-        const newMin = clampChartNum(Number(m.tradeDetailNewChartMinValue) || 2e5, 0, 1e12);
-        const jumpGapDays = clampChartNum(Number(m.tradeDetailJumpMaxGapDays) || 3, 0.25, 30);
-        const jumpPct = clampChartNum(Number(m.tradeDetailJumpMinPct) || 1e3, 1, 5e4);
-        return {
-            enabled: enabled,
-            recencyDays: recDays,
-            recencySec: recDays * 86400,
-            newChartMinValue: newMin,
-            jumpMaxGapDays: jumpGapDays,
-            jumpMaxGapSec: jumpGapDays * 86400,
-            jumpMinPct: jumpPct,
-            jumpMinRatio: jumpPct / 100,
-        };
-    }
-    function loadTradeDetailChartAlertSettings() {
-        if (chartAlertSettingsCache) {
-            return Promise.resolve(chartAlertSettingsCache);
-        }
-        if (chartAlertSettingsPromise) {
-            return chartAlertSettingsPromise;
-        }
-        chartAlertSettingsPromise = new Promise(function (resolve) {
-            try {
-                chrome.storage.local.get(['rotradeSettings'], function (r) {
-                    if (chrome.runtime.lastError) {
-                        chartAlertSettingsCache = resolveChartAlertSettingsFromMerged(null);
-                        chartAlertSettingsPromise = null;
-                        resolve(chartAlertSettingsCache);
-                        return;
-                    }
-                    chartAlertSettingsCache = resolveChartAlertSettingsFromMerged(
-                        (r && r.rotradeSettings) || {}
-                    );
-                    chartAlertSettingsPromise = null;
-                    resolve(chartAlertSettingsCache);
-                });
-            } catch {
-                chartAlertSettingsCache = resolveChartAlertSettingsFromMerged(null);
-                chartAlertSettingsPromise = null;
-                resolve(chartAlertSettingsCache);
-            }
-        });
-        return chartAlertSettingsPromise;
-    }
-    function analyzeSuspiciousRolautotradeStats(stats, chartCfg) {
-        const empty = {
-            suspicious: false,
-            reasons: [],
-        };
-        if (!chartCfg || !chartCfg.enabled) {
-            return empty;
-        }
-        const reasons = [];
-        const now = Date.now() / 1e3;
-        const chart = normalizeChartData(stats && stats.chart_data);
-        if (chart.length === 0) {
-            return empty;
-        }
-        const first = chart[0];
-        const firstAge = now - first.nominal_scan_time;
-        const firstVal = Number(first.value) || 0;
-        if (firstAge <= chartCfg.recencySec && firstVal >= chartCfg.newChartMinValue) {
-            reasons.push(
-                'chart first scan within the last ' +
-                    chartCfg.recencyDays +
-                    ' days with starting value ≥ ' +
-                    chartCfg.newChartMinValue
-            );
-        }
-        let strongestJump = null;
-        for (let i = 0; i < chart.length - 1; i++) {
-            const a = chart[i];
-            const b = chart[i + 1];
-            const dt = b.nominal_scan_time - a.nominal_scan_time;
-            if (dt > chartCfg.jumpMaxGapSec || dt < 0) {
-                continue;
-            }
-            const aAge = now - a.nominal_scan_time;
-            const bAge = now - b.nominal_scan_time;
-            if (aAge > chartCfg.recencySec || bAge > chartCfg.recencySec) {
-                continue;
-            }
-            const va = Number(a.value) || 0;
-            const vb = Number(b.value) || 0;
-            if (va <= 0) {
-                continue;
-            }
-            const pctIncrease = (vb - va) / va;
-            if (pctIncrease >= chartCfg.jumpMinRatio) {
-                if (!strongestJump || pctIncrease > strongestJump.pctIncrease) {
-                    strongestJump = {
-                        pctIncrease: pctIncrease,
-                        dt: dt,
-                        va: va,
-                        vb: vb,
-                    };
-                }
-            }
-        }
-        if (strongestJump) {
-            const gapDays = strongestJump.dt / 86400;
-            const gapDaysInt = Math.max(1, Math.round(gapDays));
-            const gapDayWord = gapDaysInt === 1 ? 'day' : 'days';
-            const pctShown = (strongestJump.pctIncrease * 100).toFixed(2);
-            const vaStr = Math.round(strongestJump.va).toLocaleString('en-US');
-            const vbStr = Math.round(strongestJump.vb).toLocaleString('en-US');
-            reasons.push(
-                'value jump +' +
-                    pctShown +
-                    '% (' +
-                    vaStr +
-                    ' → ' +
-                    vbStr +
-                    ') over ' +
-                    gapDaysInt +
-                    ' ' +
-                    gapDayWord +
-                    ' between scans'
-            );
-        }
-        const seen = new Set();
-        const uniq = [];
-        for (let r = 0; r < reasons.length; r++) {
-            if (!seen.has(reasons[r])) {
-                seen.add(reasons[r]);
-                uniq.push(reasons[r]);
-            }
-        }
-        return {
-            suspicious: uniq.length > 0,
-            reasons: uniq,
-        };
     }
     function getRolimonItemsRaw() {
         if (rolimonItemsRawCache) {
@@ -645,52 +199,6 @@
             return null;
         }
         return window.TradeDetailRobuxUsd.robuxAmountToUsd(val, usdPer1k);
-    }
-    function formatUsdAmountDisplay(n) {
-        if (!isFinite(n)) {
-            return '';
-        }
-        const trimmed = n.toFixed(2).replace(/\.?0+$/, '');
-        if (trimmed.indexOf('.') === -1) {
-            return parseInt(trimmed, 10).toLocaleString('en-US');
-        }
-        const parts = trimmed.split('.');
-        const intNum = parseInt(parts[0], 10);
-        return intNum.toLocaleString('en-US') + '.' + parts[1];
-    }
-    function rolimonsValueFromItemArray(arr) {
-        if (!Array.isArray(arr) || arr.length < 5) {
-            return null;
-        }
-        const v = arr[4];
-        if (v === null || v === undefined) {
-            return null;
-        }
-        const n = typeof v === 'number' ? v : Number(v);
-        if (!isFinite(n)) {
-            return null;
-        }
-        return n;
-    }
-    function rolimonsRapFromItemArray(arr) {
-        if (!Array.isArray(arr) || arr.length < 3) {
-            return null;
-        }
-        const v = arr[2];
-        if (v === null || v === undefined) {
-            return null;
-        }
-        const n = typeof v === 'number' ? v : Number(v);
-        if (!isFinite(n)) {
-            return null;
-        }
-        return n;
-    }
-    function formatRolimonsValueDisplay(n) {
-        if (!isFinite(n)) {
-            return '';
-        }
-        return Math.round(n).toLocaleString('en-US');
     }
     function hasNativeRolimonsValueRow(priceEl) {
         if (priceEl.querySelector('.icon-rolimons:not([data-rotrade-synthetic])')) {
@@ -1130,11 +638,33 @@
         }
         return robux;
     }
-    function injectTradeSummaryBetweenOffers(detail, items, seq, usdPer1k) {
+    function injectTradeSummaryBetweenOffers(detail, items, seq, usdPer1k, showWinLoss, usdEnabled) {
         if (seq !== usdInjectSeq) {
             return;
         }
         if (!detail || !items || typeof items !== 'object') {
+            return;
+        }
+        function restoreWinLossAnchors() {
+            detail.querySelectorAll('.trade-list-detail-offer .rbx-divider').forEach(
+                function (el) {
+                    if (!el || !el.style) {
+                        return;
+                    }
+                    el.style.removeProperty('display');
+                    el.style.removeProperty('position');
+                    el.style.removeProperty('overflow');
+                    el.style.removeProperty('background-color');
+                    el.style.removeProperty('padding-top');
+                    el.style.removeProperty('border-top');
+                }
+            );
+        }
+        if (!showWinLoss) {
+            detail.querySelectorAll('[data-rotrade-trade-summary]').forEach(function (el) {
+                el.remove();
+            });
+            restoreWinLossAnchors();
             return;
         }
         const per1k =
@@ -1146,6 +676,7 @@
             detail.querySelectorAll('[data-rotrade-trade-summary]').forEach(function (el) {
                 el.remove();
             });
+            restoreWinLossAnchors();
             return;
         }
         const totals = {
@@ -1153,11 +684,13 @@
                 rap: 0,
                 value: 0,
                 usd: 0,
+                robux: 0,
             },
             received: {
                 rap: 0,
                 value: 0,
                 usd: 0,
+                robux: 0,
             },
         };
         offers.forEach(function (offer) {
@@ -1193,7 +726,11 @@
             if (offeredRobux > 0) {
                 totals[bucket].rap += offeredRobux;
                 totals[bucket].value += offeredRobux;
-                totals[bucket].usd += window.TradeDetailRobuxUsd.robuxAmountToUsd(offeredRobux, per1k);
+                totals[bucket].usd += window.TradeDetailRobuxUsd.robuxAmountToUsd(
+                    offeredRobux,
+                    per1k
+                );
+                totals[bucket].robux += offeredRobux;
             }
         });
         const rapDiff = totals.received.rap - totals.given.rap;
@@ -1212,13 +749,15 @@
             } else if (secondOffer) {
                 secondOffer.insertBefore(summary, secondOffer.firstChild);
             } else {
-                const anchor = offers[0];
-                anchor.parentNode.insertBefore(summary, anchor.nextSibling);
+                const anchor0 = offers[0];
+                anchor0.parentNode.insertBefore(summary, anchor0.nextSibling);
             }
         }
         summary.innerHTML = '';
         summary.style.position = 'relative';
         summary.style.top = '';
+        summary.style.left = '';
+        summary.style.right = '';
         summary.style.margin = '6px auto 10px auto';
         summary.style.padding = '1px';
         summary.style.width = '100%';
@@ -1244,15 +783,17 @@
                 return Math.round(n).toLocaleString('en-US');
             }
         );
-        const usdChip = appendTradeSummaryChip(
-            summary,
-            '$',
-            usdDiff,
-            totals.given.usd,
-            function (n) {
-                return formatUsdAmountDisplay(n);
-            }
-        );
+        const usdChip = usdEnabled
+            ? appendTradeSummaryChip(
+                  summary,
+                  '$',
+                  usdDiff,
+                  totals.given.usd,
+                  function (n) {
+                      return formatUsdAmountDisplay(n);
+                  }
+              )
+            : null;
         if (rapChip) {
             rapChip.style.order = '1';
         }
@@ -1264,7 +805,7 @@
             usdChip.style.flexBasis = 'calc(50% - 8px)';
         }
     }
-    function injectOfferTotalsRowsForTradeDetail(detail, items, seq, usdPer1k) {
+    function injectOfferTotalsRowsForTradeDetail(detail, items, seq, usdPer1k, showUsd) {
         if (seq !== usdInjectSeq) {
             return;
         }
@@ -1350,7 +891,12 @@
                 rolValue.textContent = rolTxt;
                 amountWrap.appendChild(rolIcon);
                 amountWrap.appendChild(rolValue);
-                amountWrap.appendChild(document.createElement('br'));
+                if (showUsd) {
+                    amountWrap.appendChild(document.createElement('br'));
+                }
+            }
+            if (!showUsd) {
+                return;
             }
             const usdIcon = document.createElement('span');
             usdIcon.className = 'icon rotrade-usd-currency';
@@ -1709,6 +1255,42 @@
         }
         injectUsdRowsInRoot(detail, items, usdPer1k);
     }
+    function removeUsdRowsFromRoot(root) {
+        if (!root) {
+            return;
+        }
+        root.querySelectorAll('[data-rotrade-usd]').forEach(function (el) {
+            const link = el.closest('a.rotrade-caption-usd-value-link');
+            const target = link || el;
+            const price = itemCardPriceFromAugmentedNode(target);
+            if (price) {
+                price.classList.remove('rotrade-item-price-has-usd');
+            }
+            const node = link && link.parentNode === el.parentNode ? link : target;
+            if (node && node.parentNode) {
+                node.remove();
+            } else if (target && target.parentNode) {
+                target.remove();
+            }
+        });
+        root.querySelectorAll('.item-card-caption').forEach(pruneEmptyCaptionValuesContainer);
+        root.querySelectorAll('.item-card-caption .item-card-price').forEach(
+            syncPriceCellInlineLayout
+        );
+    }
+    function removeCatalogResellerUsdRows() {
+        document.querySelectorAll('[data-rotrade-reseller-usd]').forEach(function (line) {
+            const stack = line.parentNode;
+            line.remove();
+            if (stack && stack.classList.contains('rotrade-reseller-price-stack')) {
+                const robuxSpan = stack.querySelector('.text-robux');
+                if (robuxSpan && stack.parentNode) {
+                    stack.parentNode.insertBefore(robuxSpan, stack);
+                    stack.remove();
+                }
+            }
+        });
+    }
     function offeredRobuxFromTradeRequestOffer(offer) {
         if (!offer) {
             return 0;
@@ -1748,12 +1330,13 @@
             fn(slotEl);
         });
     }
-    function injectTradeRequestOfferTotals(root, items, usdPer1k) {
+    function injectTradeRequestOfferTotals(root, items, usdPer1k, includeUsd) {
         if (!root || !items || typeof items !== 'object') {
             return;
         }
         const per1k =
             typeof usdPer1k === 'number' && isFinite(usdPer1k) && usdPer1k > 0 ? usdPer1k : 4;
+        const showUsd = includeUsd !== false;
         const offers = root.querySelectorAll('.trade-request-window-offer');
         offers.forEach(function (offer) {
             let totalRol = 0;
@@ -1828,7 +1411,15 @@
                 rolValue.textContent = rolTxt;
                 amountWrap.appendChild(rolIcon);
                 amountWrap.appendChild(rolValue);
-                amountWrap.appendChild(document.createElement('br'));
+                if (showUsd) {
+                    amountWrap.appendChild(document.createElement('br'));
+                }
+            }
+            if (!showUsd) {
+                if (!amountWrap.childNodes.length) {
+                    removeTradeRequestOfferTotalsWrap(amountWrap);
+                }
+                return;
             }
             const usdIcon = document.createElement('span');
             usdIcon.className = 'icon rotrade-usd-currency';
@@ -1876,9 +1467,6 @@
             }
             el.remove();
         });
-        panel.querySelectorAll('[data-rotrade-trade-request-inv-usd-total]').forEach(function (el) {
-            el.remove();
-        });
         panel.querySelectorAll('.item-card-caption').forEach(pruneEmptyCaptionValuesContainer);
         panel
             .querySelectorAll('.item-card-caption .item-card-price')
@@ -1918,7 +1506,9 @@
         return Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(
             function (results) {
                 const items = results[0];
-                const usdPer1k = results[1];
+                const usd = results[1] || {};
+                const per1k = typeof usd.per1k === 'number' ? usd.per1k : 4;
+                const usdEnabled = usd.enabled !== false;
                 const app = document.getElementById('trades-web-app');
                 if (!app) {
                     return;
@@ -1931,9 +1521,13 @@
                     }
                     p.classList.add('rotrade-trade-inv-augmented');
                     injectSyntheticRolimonsRowsInRoot(p, items);
-                    injectUsdRowsInRoot(p, items, usdPer1k);
+                    if (usdEnabled) {
+                        injectUsdRowsInRoot(p, items, per1k);
+                    } else {
+                        removeUsdRowsFromRoot(p);
+                    }
                 }
-                injectTradeRequestOfferTotals(app, items, usdPer1k);
+                injectTradeRequestOfferTotals(app, items, per1k, usdEnabled);
             }
         );
     }
@@ -2025,21 +1619,6 @@
         });
         return p;
     }
-    function findPartnerHeaderRow(partnerLink, detail) {
-        let el = partnerLink;
-        while (el && el !== detail) {
-            if (
-                el.tagName &&
-                el.tagName.toLowerCase() === 'h2' &&
-                el.classList &&
-                el.classList.contains('trades-header-nowrap')
-            ) {
-                return el;
-            }
-            el = el.parentElement;
-        }
-        return null;
-    }
     function removePartnerInventoryLabels(detail) {
         if (!detail) {
             return;
@@ -2047,280 +1626,6 @@
         detail.querySelectorAll('.rotrade-partner-inv-block').forEach(function (el) {
             el.remove();
         });
-    }
-    function setPartnerInventoryLabel(
-        detail,
-        partnerLink,
-        userId,
-        text,
-        isLoading,
-        suspiciousAnalysis
-    ) {
-        if (!detail || !partnerLink || !userId) {
-            return;
-        }
-        removePartnerInventoryLabels(detail);
-        const block = document.createElement('div');
-        block.className = 'rotrade-partner-inv-block';
-        block.setAttribute('data-rotrade-user-id', String(userId));
-        if (isLoading) {
-            block.classList.add('rotrade-partner-inv-loading');
-        }
-        const span = isLoading ? document.createElement('span') : document.createElement('a');
-        span.className = 'rotrade-partner-inv-value';
-        span.textContent = text;
-        if (!isLoading) {
-            span.href = 'https://www.rolimons.com/player/' + encodeURIComponent(String(userId));
-            span.target = '_blank';
-            span.rel = 'noopener noreferrer';
-            span.style.textDecoration = 'underline';
-        }
-        const headerRow = findPartnerHeaderRow(partnerLink, detail);
-        const styleSource = headerRow || partnerLink;
-        let cs = null;
-        try {
-            cs = window.getComputedStyle(styleSource);
-        } catch {
-            cs = null;
-        }
-        span.style.display = 'block';
-        span.style.marginLeft = '0';
-        span.style.marginTop = '4px';
-        span.style.whiteSpace = 'nowrap';
-        span.style.color = isRobloxLightTheme() ? 'rgb(32, 34, 39)' : 'rgb(247, 247, 248)';
-        if (cs) {
-            span.style.fontSize = scaleFontSizeSmaller(cs.fontSize, 0.4);
-            span.style.lineHeight = '1.35';
-            span.style.fontWeight = cs.fontWeight;
-            span.style.fontFamily = cs.fontFamily;
-            span.style.letterSpacing = cs.letterSpacing;
-        }
-        block.appendChild(span);
-        if (
-            !isLoading &&
-            suspiciousAnalysis &&
-            suspiciousAnalysis.suspicious &&
-            suspiciousAnalysis.reasons &&
-            suspiciousAnalysis.reasons.length > 0
-        ) {
-            const warn = document.createElement('span');
-            warn.className = 'rotrade-partner-inv-chart-note';
-            warn.style.display = 'block';
-            warn.style.marginTop = '3px';
-            warn.style.color = '#fde047';
-            warn.style.whiteSpace = 'normal';
-            warn.style.lineHeight = '1.35';
-            warn.textContent = suspiciousAnalysis.reasons.join('; ');
-            if (cs) {
-                warn.style.fontSize = scaleFontSizeSmaller(cs.fontSize, 0.36);
-                warn.style.fontFamily = cs.fontFamily;
-                warn.style.letterSpacing = cs.letterSpacing;
-                warn.style.fontWeight = cs.fontWeight;
-            }
-            block.appendChild(warn);
-        }
-        if (headerRow && headerRow.parentNode) {
-            headerRow.parentNode.insertBefore(block, headerRow.nextSibling);
-        } else if (partnerLink.parentNode) {
-            partnerLink.parentNode.insertBefore(block, partnerLink.nextSibling);
-        } else {
-            detail.appendChild(block);
-        }
-    }
-    function schedulePartnerInventoryUpdate(payload) {
-        if (PARTNER_INV_DEBOUNCE_MS <= 0) {
-            updatePartnerInventoryFromPayload(payload);
-            return;
-        }
-        partnerInventoryPendingPayload = payload;
-        clearTimeout(partnerInventoryTimer);
-        partnerInventoryTimer = setTimeout(function () {
-            partnerInventoryTimer = null;
-            const p = partnerInventoryPendingPayload;
-            partnerInventoryPendingPayload = null;
-            if (p) {
-                updatePartnerInventoryFromPayload(p);
-            }
-        }, PARTNER_INV_DEBOUNCE_MS);
-    }
-    function cancelPartnerInventorySchedule() {
-        clearTimeout(partnerInventoryTimer);
-        partnerInventoryTimer = null;
-        partnerInventoryPendingPayload = null;
-    }
-    function refreshPartnerInventoryAfterSettingsChange() {
-        if (!shouldRun()) {
-            return;
-        }
-        const detail = document.querySelector('.trades-list-detail');
-        if (detail) {
-            removePartnerInventoryLabels(detail);
-        }
-        lastPartnerInvPayloadKey = '';
-        partnerInventoryRequestSeq++;
-        schedule();
-    }
-    function partnerInventoryLabelIsDone(detail, userId) {
-        const block = detail.querySelector(
-            '.rotrade-partner-inv-block[data-rotrade-user-id="' + String(userId) + '"]'
-        );
-        if (!block) {
-            return false;
-        }
-        const t = block.textContent || '';
-        return t.indexOf('…') === -1;
-    }
-    function updatePartnerInventoryFromPayload(payload) {
-        const detail = document.querySelector('.trades-list-detail');
-        if (!detail || !payload || !payload.partner || !payload.partner.userId) {
-            if (detail) {
-                removePartnerInventoryLabels(detail);
-                lastPartnerInvPayloadKey = '';
-            }
-            return;
-        }
-        const userId = payload.partner.userId;
-        const partnerLink = findPartnerUserLink(detail);
-        if (!partnerLink) {
-            return;
-        }
-        const invKey = partnerInvPayloadKey(payload);
-        if (invKey === lastPartnerInvPayloadKey && partnerInventoryLabelIsDone(detail, userId)) {
-            return;
-        }
-        const key = String(userId);
-        const resolvedStats = roautotradeUserStatsResolved.get(key);
-        if (resolvedStats) {
-            if (rolimonItemsRawCache && chartAlertSettingsCache) {
-                const scanned = resolvedStats.scanned_player_assets;
-                const total = totalValueFromScannedPlayerAssets(scanned, rolimonItemsRawCache);
-                const collectibles = totalCollectibleCountFromScanned(scanned);
-                const label = formatPartnerValueLine(
-                    formatCompactInventoryValue(total),
-                    'ok',
-                    collectibles
-                );
-                setPartnerInventoryLabel(
-                    detail,
-                    partnerLink,
-                    userId,
-                    label,
-                    false,
-                    analyzeSuspiciousRolautotradeStats(resolvedStats, chartAlertSettingsCache)
-                );
-                lastPartnerInvPayloadKey = invKey;
-                return;
-            }
-            setPartnerInventoryLabel(
-                detail,
-                partnerLink,
-                userId,
-                formatPartnerValueLine(null, 'loading'),
-                true,
-                null
-            );
-            const seq = ++partnerInventoryRequestSeq;
-            Promise.all([getRolimonItemsRaw(), loadTradeDetailChartAlertSettings()])
-                .then(function (pair) {
-                    if (seq !== partnerInventoryRequestSeq) {
-                        return;
-                    }
-                    const items = pair[0];
-                    const chartCfg = pair[1];
-                    const scanned = resolvedStats.scanned_player_assets;
-                    const total = totalValueFromScannedPlayerAssets(scanned, items);
-                    const collectibles = totalCollectibleCountFromScanned(scanned);
-                    const label = formatPartnerValueLine(
-                        formatCompactInventoryValue(total),
-                        'ok',
-                        collectibles
-                    );
-                    const detailEl = document.querySelector('.trades-list-detail');
-                    const link = detailEl && findPartnerUserLink(detailEl);
-                    if (!detailEl || !link) {
-                        return;
-                    }
-                    if (seq !== partnerInventoryRequestSeq) {
-                        return;
-                    }
-                    setPartnerInventoryLabel(
-                        detailEl,
-                        link,
-                        userId,
-                        label,
-                        false,
-                        analyzeSuspiciousRolautotradeStats(resolvedStats, chartCfg)
-                    );
-                    lastPartnerInvPayloadKey = invKey;
-                })
-                .catch(function () {});
-            return;
-        }
-        const seq = ++partnerInventoryRequestSeq;
-        setPartnerInventoryLabel(
-            detail,
-            partnerLink,
-            userId,
-            formatPartnerValueLine(null, 'loading'),
-            true,
-            null
-        );
-        Promise.all([
-            getRolautotradeUserStats(userId),
-            getRolimonItemsRaw(),
-            loadTradeDetailChartAlertSettings(),
-        ])
-            .then(function (results) {
-                if (seq !== partnerInventoryRequestSeq) {
-                    return;
-                }
-                const stats = results[0];
-                const items = results[1];
-                const chartCfg = results[2];
-                const scanned = stats && stats.scanned_player_assets;
-                const total = totalValueFromScannedPlayerAssets(scanned, items);
-                const collectibles = totalCollectibleCountFromScanned(scanned);
-                const label = formatPartnerValueLine(
-                    formatCompactInventoryValue(total),
-                    'ok',
-                    collectibles
-                );
-                const detailEl = document.querySelector('.trades-list-detail');
-                const link = detailEl && findPartnerUserLink(detailEl);
-                if (!detailEl || !link) {
-                    return;
-                }
-                if (seq !== partnerInventoryRequestSeq) {
-                    return;
-                }
-                setPartnerInventoryLabel(
-                    detailEl,
-                    link,
-                    userId,
-                    label,
-                    false,
-                    analyzeSuspiciousRolautotradeStats(stats, chartCfg)
-                );
-                lastPartnerInvPayloadKey = invKey;
-            })
-            .catch(function () {
-                if (seq !== partnerInventoryRequestSeq) {
-                    return;
-                }
-                const detailEl = document.querySelector('.trades-list-detail');
-                const link = detailEl && findPartnerUserLink(detailEl);
-                if (detailEl && link) {
-                    setPartnerInventoryLabel(
-                        detailEl,
-                        link,
-                        userId,
-                        formatPartnerValueLine(null, 'error'),
-                        false,
-                        null
-                    );
-                    lastPartnerInvPayloadKey = invKey;
-                }
-            });
     }
     function buildPayload() {
         const detail = document.querySelector('.trades-list-detail');
@@ -2392,57 +1697,60 @@
     function run() {
         if (!shouldRun()) {
             lastSerialized = '';
-            cancelPartnerInventorySchedule();
             const d = document.querySelector('.trades-list-detail');
             if (d) {
                 removePartnerInventoryLabels(d);
-                lastPartnerInvPayloadKey = '';
                 removeTradeDetailUsdRows(d);
             }
             return;
         }
         const payload = buildPayload();
         if (!payload) {
-            cancelPartnerInventorySchedule();
             const d = document.querySelector('.trades-list-detail');
             if (d) {
                 removePartnerInventoryLabels(d);
-                lastPartnerInvPayloadKey = '';
                 removeTradeDetailUsdRows(d);
             }
             return;
-        }
-        const detailNow = document.querySelector('.trades-list-detail');
-        if (detailNow) {
-            detailNow.querySelectorAll('.trade-list-detail-offer').forEach(function (offer) {
-                if (offer && offer.style) {
-                    offer.style.setProperty('padding-bottom', '50px', 'important');
-                }
-            });
         }
         const serialized = JSON.stringify(payload);
         if (serialized !== lastSerialized) {
             lastSerialized = serialized;
         }
-        schedulePartnerInventoryUpdate(payload);
         const seq = ++usdInjectSeq;
-        Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(function (results) {
-            const items = results[0];
-            const usdPer1k = results[1];
-            if (seq !== usdInjectSeq) {
-                return;
+        Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(
+            function (results) {
+                const items = results[0];
+                const usd = results[1] || {};
+                const per1k = typeof usd.per1k === 'number' ? usd.per1k : 4;
+                const usdEnabled = usd.enabled !== false;
+                const showWinLoss = usd.showTradeSummaryWinLoss !== false;
+                if (seq !== usdInjectSeq) {
+                    return;
+                }
+                const detailEl = document.querySelector('.trades-list-detail');
+                if (!detailEl || !shouldRun()) {
+                    return;
+                }
+                withSuppressedObserverSchedule(function () {
+                    injectSyntheticRolimonsValueRowsForTradeDetail(detailEl, items, seq);
+                    if (usdEnabled) {
+                        injectUsdRowsForTradeDetail(detailEl, items, seq, per1k);
+                    } else {
+                        removeUsdRowsFromRoot(detailEl);
+                    }
+                    injectOfferTotalsRowsForTradeDetail(detailEl, items, seq, per1k, usdEnabled);
+                    injectTradeSummaryBetweenOffers(
+                        detailEl,
+                        items,
+                        seq,
+                        per1k,
+                        showWinLoss,
+                        usdEnabled
+                    );
+                });
             }
-            const detailEl = document.querySelector('.trades-list-detail');
-            if (!detailEl || !shouldRun()) {
-                return;
-            }
-            withSuppressedObserverSchedule(function () {
-                injectSyntheticRolimonsValueRowsForTradeDetail(detailEl, items, seq);
-                injectUsdRowsForTradeDetail(detailEl, items, seq, usdPer1k);
-                injectOfferTotalsRowsForTradeDetail(detailEl, items, seq, usdPer1k);
-                injectTradeSummaryBetweenOffers(detailEl, items, seq, usdPer1k);
-            });
-        });
+        );
     }
     function schedule() {
         if (!window.TradeDetailPath.isTradesPage()) {
@@ -2567,7 +1875,10 @@
         }, 0);
     }
     function scheduleCatalogAugmentation() {
-        if (!window.TradeDetailPath.isCatalogBrowsePage() && !window.TradeDetailPath.isMarketplaceItemDetailPage()) {
+        if (
+            !window.TradeDetailPath.isCatalogBrowsePage() &&
+            !window.TradeDetailPath.isMarketplaceItemDetailPage()
+        ) {
             return;
         }
         clearTimeout(catalogDebounceTimer);
@@ -2581,22 +1892,118 @@
             }
         }, DEBOUNCE_MS);
     }
+    function decorateCatalogBrowseBadges(root, items) {
+        if (!root || !window.ProjectedFlag || !window.ProjectedFlag.decorateThumbContainer) {
+            return;
+        }
+        const cards = root.querySelectorAll('.catalog-item-container');
+        cards.forEach(function (card) {
+            const thumbContainer = card.querySelector('.item-card-thumb-container');
+            if (!thumbContainer) {
+                return;
+            }
+            const pair = resolveItemIdPair(card);
+            const itemId = pair ? pair.itemId : null;
+            window.ProjectedFlag.decorateThumbContainer(thumbContainer, itemId, items);
+        });
+    }
+    function decorateCatalogItemDetailBadges(items) {
+        if (!window.ProjectedFlag || !window.ProjectedFlag.decorateThumbContainer) {
+            return;
+        }
+        const detailPair = window.TradeDetailPath.resolveMarketplaceItemDetailPair();
+        if (!detailPair) {
+            return;
+        }
+        const thumbContainer =
+            document.querySelector('#item-thumbnail-container-frontend') ||
+            document.querySelector('#item-details .item-card-thumb-container') ||
+            document.querySelector('.item-thumbnail-container');
+        if (!thumbContainer) {
+            return;
+        }
+        window.ProjectedFlag.decorateThumbContainer(thumbContainer, detailPair.itemId, items);
+    }
+    function decorateCatalogItemTitleLink() {
+        const detailPair = window.TradeDetailPath.resolveMarketplaceItemDetailPair();
+        if (!detailPair || !detailPair.itemId) {
+            return;
+        }
+        const container = document.querySelector('.item-name-container');
+        if (!container) {
+            return;
+        }
+        const heading = container.querySelector('h1');
+        if (!heading) {
+            return;
+        }
+        if (heading.querySelector(':scope > .rotrade-rolimons-title-link')) {
+            return;
+        }
+        const link = document.createElement('a');
+        link.className = 'rotrade-rolimons-title-link';
+        link.href =
+            'https://www.rolimons.com/item/' + encodeURIComponent(detailPair.itemId);
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.title = "Open on Rolimon's";
+        link.setAttribute('aria-label', "Open on Rolimon's");
+        link.style.cssText =
+            'display:inline-flex;align-items:center;margin-left:10px;vertical-align:middle;cursor:pointer;text-decoration:none;transition:transform 0.15s ease;';
+        link.addEventListener('mouseenter', function () {
+            link.style.transform = 'scale(1.1)';
+        });
+        link.addEventListener('mouseleave', function () {
+            link.style.transform = '';
+        });
+        link.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+        const img = document.createElement('img');
+        const isDark =
+            (document.body && document.body.classList.contains('dark-theme')) ||
+            (document.documentElement &&
+                document.documentElement.classList.contains('dark-theme'));
+        img.src = chrome.runtime.getURL(
+            isDark ? 'assets/rolimonsLink.svg' : 'assets/rolimonsLinkDark.svg'
+        );
+        img.alt = '';
+        img.setAttribute('aria-hidden', 'true');
+        img.style.cssText = 'width:24px;height:24px;display:block;pointer-events:none;';
+        link.appendChild(img);
+        heading.style.overflow = 'visible';
+        heading.appendChild(link);
+    }
     function runCatalogItemDetailAugmentation() {
         if (!window.TradeDetailPath.isMarketplaceItemDetailPage()) {
             return;
         }
         const root = document.querySelector('#item-details') || document.body;
         const seq = ++catalogAugmentSeq;
-        Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(function (results) {
-            const items = results[0];
-            const usdPer1k = results[1];
-            if (seq !== catalogAugmentSeq || !window.TradeDetailPath.isMarketplaceItemDetailPage()) {
-                return;
+        Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(
+            function (results) {
+                const items = results[0];
+                const usd = results[1] || {};
+                const per1k = typeof usd.per1k === 'number' ? usd.per1k : 4;
+                const usdEnabled = usd.enabled !== false;
+                if (
+                    seq !== catalogAugmentSeq ||
+                    !window.TradeDetailPath.isMarketplaceItemDetailPage()
+                ) {
+                    return;
+                }
+                injectSyntheticRolimonsRowsInRoot(root, items);
+                if (usdEnabled) {
+                    injectUsdRowsInRoot(root, items, per1k);
+                    injectCatalogResellerResaleUsdRows(per1k);
+                } else {
+                    removeUsdRowsFromRoot(root);
+                    removeCatalogResellerUsdRows();
+                }
+                decorateCatalogItemDetailBadges(items);
+                decorateCatalogItemTitleLink();
             }
-            injectSyntheticRolimonsRowsInRoot(root, items);
-            injectUsdRowsInRoot(root, items, usdPer1k);
-            injectCatalogResellerResaleUsdRows(usdPer1k);
-        });
+        );
     }
     function runCatalogAugmentation() {
         if (!window.TradeDetailPath.isCatalogBrowsePage()) {
@@ -2610,15 +2017,24 @@
             return;
         }
         const seq = ++catalogAugmentSeq;
-        Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(function (results) {
-            const items = results[0];
-            const usdPer1k = results[1];
-            if (seq !== catalogAugmentSeq || !window.TradeDetailPath.isCatalogBrowsePage()) {
-                return;
+        Promise.all([getRolimonItemsRaw(), window.TradeDetailRobuxUsd.loadSettings()]).then(
+            function (results) {
+                const items = results[0];
+                const usd = results[1] || {};
+                const per1k = typeof usd.per1k === 'number' ? usd.per1k : 4;
+                const usdEnabled = usd.enabled !== false;
+                if (seq !== catalogAugmentSeq || !window.TradeDetailPath.isCatalogBrowsePage()) {
+                    return;
+                }
+                injectSyntheticRolimonsRowsInRoot(root, items);
+                if (usdEnabled) {
+                    injectUsdRowsInRoot(root, items, per1k);
+                } else {
+                    removeUsdRowsFromRoot(root);
+                }
+                decorateCatalogBrowseBadges(root, items);
             }
-            injectSyntheticRolimonsRowsInRoot(root, items);
-            injectUsdRowsInRoot(root, items, usdPer1k);
-        });
+        );
     }
     function init() {
         if (window.__rotradeTradeDetailContextInit) {
@@ -2635,12 +2051,7 @@
                     if (areaName !== 'local' || !changes.rotradeSettings) {
                         return;
                     }
-                    chartAlertSettingsCache = resolveChartAlertSettingsFromMerged(
-                        (changes.rotradeSettings && changes.rotradeSettings.newValue) || {}
-                    );
-                    chartAlertSettingsPromise = null;
                     window.TradeDetailRobuxUsd.invalidateCache();
-                    refreshPartnerInventoryAfterSettingsChange();
                     schedule();
                     scheduleCatalogAugmentation();
                 });
@@ -2659,6 +2070,22 @@
             function (e) {
                 if (!e.target || !e.target.closest) {
                     return;
+                }
+                if (e.target.closest('.trade-row')) {
+                    document
+                        .querySelectorAll('.trades-list-detail [data-rotrade-trade-summary]')
+                        .forEach(function (el) {
+                            el.remove();
+                        });
+                    document
+                        .querySelectorAll('.trades-list-detail [data-rotrade-offer-totals]')
+                        .forEach(function (el) {
+                            const prev = el.previousSibling;
+                            if (prev && prev.nodeType === 1 && prev.tagName === 'BR') {
+                                prev.remove();
+                            }
+                            el.remove();
+                        });
                 }
                 if (
                     e.target.closest('.trade-row') ||
@@ -2716,4 +2143,3 @@
         augmentCatalogItemDetail: runCatalogItemDetailAugmentation,
     };
 })();
-

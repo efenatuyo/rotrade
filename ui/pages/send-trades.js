@@ -102,7 +102,7 @@
                         window.shuffleUsers();
                     }
                 })
-                .catch((error) => {});
+                .catch(() => {});
         }
     }
     function loadSendTradesPage() {

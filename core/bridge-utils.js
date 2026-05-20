@@ -103,17 +103,10 @@
                 attempts++;
                 if (window.angular) {
                     waitForAngularAndCache().then(resolve);
+                } else if (attempts < maxAttempts) {
+                    setTimeout(checkForAngularScript, 100);
                 } else {
-                    const angularScripts = Array.from(document.scripts).filter(
-                        (script) =>
-                            (script.src && script.src.includes('angular')) ||
-                            (script.textContent && script.textContent.includes('angular'))
-                    );
-                    if (attempts < maxAttempts) {
-                        setTimeout(checkForAngularScript, 100);
-                    } else {
-                        resolve(null);
-                    }
+                    resolve(null);
                 }
             }
             checkForAngularScript();
@@ -126,10 +119,7 @@
             const checkAngular = () => {
                 attempts++;
                 if (window.angular) {
-                    const modules = window.angular._getModules ? window.angular._getModules() : [];
                     const tradesElement = document.querySelector('[trades]');
-                    const hasTradesElement = !!tradesElement;
-                    const isTradesElementVisible = tradesElement && tradesElement.offsetHeight > 0;
                     if (window.angular && window.angular.element && tradesElement) {
                         try {
                             const ngElement = window.angular.element(tradesElement);
