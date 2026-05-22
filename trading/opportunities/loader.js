@@ -251,53 +251,6 @@
                         };
                     });
                     opportunities.push(...newOpportunities);
-                    const isSendingAllTrades =
-                        window.SendAllTrades &&
-                        typeof window.SendAllTrades.isSendingAllTrades === 'function' &&
-                        window.SendAllTrades.isSendingAllTrades();
-                    if (
-                        !isSendingAllTrades &&
-                        (!window._lastOpportunityUpdate ||
-                            Date.now() - window._lastOpportunityUpdate > 500)
-                    ) {
-                        window._lastOpportunityUpdate = Date.now();
-                        if (
-                            window.location.pathname.includes('/trades') ||
-                            window.location.pathname.includes('/auto-trades')
-                        ) {
-                            function shuffleArray(array) {
-                                const shuffled = [...array];
-                                for (let i = shuffled.length - 1; i > 0; i--) {
-                                    const j = Math.floor(Math.random() * (i + 1));
-                                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                                }
-                                return shuffled;
-                            }
-                            const storedSentTrades = await Storage.getAccountAsync(
-                                'sentTrades',
-                                []
-                            );
-                            if (storedSentTrades && Array.isArray(storedSentTrades)) {
-                                window.sentTrades = new Set(
-                                    storedSentTrades.map((key) => String(key))
-                                );
-                            } else if (!window.sentTrades) {
-                                window.sentTrades = new Set();
-                            }
-                            const shuffled = shuffleArray(opportunities);
-                            window.currentOpportunities = shuffled;
-                            let filtered = window.currentOpportunities;
-                            filtered = filtered.filter((opp) => {
-                                if (!opp || !opp.tradeKey) return true;
-                                return !window.sentTrades.has(opp.tradeKey);
-                            });
-                            window.filteredOpportunities = filtered;
-                            if (window.updateTradeFilterBar) window.updateTradeFilterBar();
-                            Pagination.setCurrentPage(1);
-                            Pagination.displayCurrentPage().catch(() => {});
-                            if (window.updateTotalUsersInfo) window.updateTotalUsersInfo();
-                        }
-                    }
                 }
             } catch (error) {}
         };
@@ -353,7 +306,6 @@
             return !isSent && !isRestricted;
         });
         filtered = shuffleArray(filtered);
-        filtered = window.fetchRealUsernames ? await window.fetchRealUsernames(filtered) : filtered;
         if (!Array.isArray(filtered) || filtered.length === 0) {
             window.currentOpportunities = [];
             window.filteredOpportunities = [];

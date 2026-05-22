@@ -83,6 +83,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return handleFetchUserAuth(request, sendResponse);
     } else if (request.action === 'fetchUserInventory') {
         return handleFetchUserInventory(request, sendResponse);
+    } else if (request.action === 'fetchUsernamesBatch') {
+        return handleFetchUsernamesBatch(request, sendResponse);
     } else if (request.action === 'fetchThumbnail') {
         return handleFetchThumbnail(request, sendResponse);
     } else if (request.action === 'fetchProofs') {

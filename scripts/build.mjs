@@ -10,7 +10,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const root = join(__dirname, '..');
 
-const dist = join(root, 'dist');
+const BROWSER = (process.argv[2] || process.env.BROWSER || 'chrome').toLowerCase();
+if (BROWSER !== 'chrome' && BROWSER !== 'firefox') {
+    throw new Error(`Unknown browser target "${BROWSER}" (expected "chrome" or "firefox")`);
+}
+
+const dist = join(root, BROWSER === 'firefox' ? 'dist-firefox' : 'dist');
 
 const CONTENT_BUNDLE = 'content-scripts.bundle.js';
 
@@ -178,6 +183,12 @@ async function writeDistManifest(manifest) {
     const cs = out.content_scripts?.[0];
     if (cs) {
         cs.js = [CONTENT_BUNDLE];
+    }
+    if (BROWSER === 'firefox') {
+        out.background = { scripts: ['background/background.js'] };
+    } else {
+        out.background = { service_worker: 'background/background.js' };
+        delete out.browser_specific_settings;
     }
     const text = JSON.stringify(out, null, 4) + '\n';
     await writeFile(join(dist, 'manifest.json'), text, 'utf8');

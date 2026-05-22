@@ -1,8 +1,8 @@
 (function () {
     'use strict';
-    function checkForEditMode() {
-        const editingTrade = Storage.get('editingTrade', null);
-        if (!editingTrade) return;
+    async function checkForEditMode() {
+        const editingTrade = await Storage.get('editingTrade', null);
+        if (!editingTrade || typeof editingTrade !== 'object') return;
         try {
             const tradeData = editingTrade;
             const pageTitle = document.querySelector('.auto-trades-title');
@@ -24,8 +24,10 @@
                 document.querySelector('input[placeholder*="Enter your trade name"]') ||
                 document.querySelector('.trade-settings input[type="text"]');
             if (nameInput) {
-                nameInput.value = tradeData.name;
-                nameInput.placeholder = `Editing: ${tradeData.name}`;
+                const safeName =
+                    tradeData.name && tradeData.name !== 'undefined' ? tradeData.name : '';
+                nameInput.value = safeName;
+                nameInput.placeholder = safeName ? `Editing: ${safeName}` : 'Enter your trade name';
             }
             if (tradeData.giving && tradeData.giving.length > 0) {
                 const selectInventoryItems = () => {

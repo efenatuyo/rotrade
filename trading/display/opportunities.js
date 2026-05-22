@@ -214,7 +214,10 @@
                 const usernameText = sHtml(opportunity.targetUser.username ?? '');
                 const targetUserIdAttr = sAttr(opportunity.targetUserId ?? '');
                 const tradeIdAttr = sAttr(opportunity.id ?? '');
-                const tradeNameText = sHtml(opportunity.name ?? '');
+                const rawName = opportunity.name;
+                const cleanedName =
+                    rawName && rawName !== 'undefined' ? rawName : '(unnamed)';
+                const tradeNameText = sHtml(cleanedName);
                 const fallbackImg =
                     'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSIxNSIgY3k9IjEyIiByPSI0IiBmaWxsPSIjNjY2NjY2Ii8+CjxwYXRoIGQ9Ik04IDI0QzggMjAuNjg2MyAxMS4xMzQgMTggMTUgMThDMTguODY2IDE4IDIyIDIwLjY4NjMgMjIgMjRIOFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+Cg==';
                 const avatarHtml = avatarUrlRaw

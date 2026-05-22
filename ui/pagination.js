@@ -35,7 +35,10 @@
             nextBtn.disabled = currentPage >= totalPages;
         }
     }
-    async function displayCurrentPage() {
+    let _displayTimer = null;
+    let _displayWaiters = [];
+    let _lastDisplayAt = 0;
+    async function _doDisplayCurrentPage() {
         const container = DOM.$('#send-trades-grid');
         if (!container) return;
         const currentPage = await getCurrentPage();
@@ -53,6 +56,9 @@
             window.displayTradeOpportunities(tradesToShow);
         }
         await updatePaginationControls();
+        if (window.fetchUsernamesForCurrentPage) {
+            window.fetchUsernamesForCurrentPage().catch(() => {});
+        }
         const userStatsToggle = document.getElementById('user-stats-toggle');
         if (userStatsToggle && userStatsToggle.checked) {
             setTimeout(() => {
@@ -61,6 +67,23 @@
                 }
             }, 100);
         }
+    }
+    function displayCurrentPage() {
+        return new Promise((resolve) => {
+            _displayWaiters.push(resolve);
+            if (_displayTimer) clearTimeout(_displayTimer);
+            const elapsed = Date.now() - _lastDisplayAt;
+            const delay = elapsed > 1500 ? 50 : 600;
+            _displayTimer = setTimeout(() => {
+                _displayTimer = null;
+                _lastDisplayAt = Date.now();
+                const waiters = _displayWaiters;
+                _displayWaiters = [];
+                _doDisplayCurrentPage()
+                    .then(() => waiters.forEach((w) => w()))
+                    .catch(() => waiters.forEach((w) => w()));
+            }, delay);
+        });
     }
     window.Pagination = {
         getCurrentPage: getCurrentPage,

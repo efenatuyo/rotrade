@@ -1,5 +1,8 @@
 node_modules/
 dist/
+dist-firefox/
+source/
+source.zip
 *.log
 .DS_Store
 3.5.8_0/

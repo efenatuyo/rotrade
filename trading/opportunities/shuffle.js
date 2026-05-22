@@ -116,11 +116,7 @@
                 );
                 return;
             }
-            let finalList = combined;
-            if (window.fetchRealUsernames) {
-                finalList = await window.fetchRealUsernames(combined);
-            }
-            window.currentOpportunities = finalList;
+            window.currentOpportunities = combined;
             if (window.applyActiveSendTradesFilter) {
                 window.applyActiveSendTradesFilter();
             } else {
@@ -138,10 +134,7 @@
             Dialogs.alert('No Owners Found', 'No owners found to shuffle.', 'info');
             return;
         }
-        let newForTrade = await buildOpportunitiesFromPoolForTrade(currentTrade);
-        if (newForTrade.length > 0 && window.fetchRealUsernames) {
-            newForTrade = await window.fetchRealUsernames(newForTrade);
-        }
+        const newForTrade = await buildOpportunitiesFromPoolForTrade(currentTrade);
         const otherTrades = (window.currentOpportunities || []).filter(
             (opp) => String(opp.id) !== String(currentTrade.id)
         );

@@ -62,6 +62,90 @@ function handleFetchUserAuth(request, sendResponse) {
     return true;
 }
 
+let _bgUsersCsrfToken = null;
+
+async function _bgFetchUsersCsrfToken() {
+    try {
+        const r = await fetch('https://auth.roblox.com/v1/logout', {
+            method: 'POST',
+            credentials: 'include',
+        });
+        const token = r.headers.get('x-csrf-token');
+        if (token) _bgUsersCsrfToken = token;
+        return token;
+    } catch {
+        return null;
+    }
+}
+
+async function _bgPostUsersBatch(batch, csrfToken) {
+    const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+    return fetch('https://users.roblox.com/v1/users', {
+        method: 'POST',
+        credentials: 'include',
+        headers: headers,
+        body: JSON.stringify({
+            userIds: batch,
+            excludeBannedUsers: false,
+        }),
+    });
+}
+
+function handleFetchUsernamesBatch(request, sendResponse) {
+    (async () => {
+        const rawIds = Array.isArray(request.userIds) ? request.userIds : [];
+        const userIds = [
+            ...new Set(
+                rawIds
+                    .map((n) => (typeof n === 'number' ? n : parseInt(n)))
+                    .filter((n) => Number.isFinite(n) && n > 0)
+            ),
+        ];
+        if (userIds.length === 0) {
+            sendResponse({ success: true, data: [] });
+            return;
+        }
+        const batches = [];
+        for (let i = 0; i < userIds.length; i += 100) {
+            batches.push(userIds.slice(i, i + 100));
+        }
+        const all = [];
+        for (const batch of batches) {
+            try {
+                let response = await _bgPostUsersBatch(batch, _bgUsersCsrfToken);
+                if (response.status === 403) {
+                    const fresh = response.headers.get('x-csrf-token');
+                    if (fresh) {
+                        _bgUsersCsrfToken = fresh;
+                    } else {
+                        await _bgFetchUsersCsrfToken();
+                    }
+                    if (_bgUsersCsrfToken) {
+                        response = await _bgPostUsersBatch(batch, _bgUsersCsrfToken);
+                    }
+                }
+                if (!response.ok) continue;
+                const data = await response.json();
+                if (Array.isArray(data?.data)) {
+                    for (const u of data.data) {
+                        all.push({
+                            id: u.id,
+                            name: u.name,
+                            displayName: u.displayName || u.name,
+                        });
+                    }
+                }
+            } catch (e) {}
+        }
+        sendResponse({ success: true, data: all });
+    })();
+    return true;
+}
+
 function handleFetchUserInventory(request, sendResponse) {
     const cacheKey = `${request.userId}_${request.cursor || ''}`;
     const now = Date.now();

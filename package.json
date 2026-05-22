@@ -1,14 +1,16 @@
 {
     "name": "rotrade-extension",
     "private": true,
-    "version": "1.2.10",
+    "version": "1.4.11",
     "description": "RoTrade for Chrome",
     "scripts": {
         "format": "prettier --write \"**/*.{js,mjs,css,html,json}\"",
         "format:check": "prettier --check \"**/*.{js,mjs,css,html,json}\"",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "build": "node scripts/build.mjs",
+        "build": "npm run build:chrome && npm run build:firefox",
+        "build:chrome": "node scripts/build.mjs chrome",
+        "build:firefox": "node scripts/build.mjs firefox",
         "verify": "node scripts/verify.mjs"
     },
     "devDependencies": {

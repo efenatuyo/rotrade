@@ -72,8 +72,10 @@
             } else {
                 statusText = `${currentlyShowing}/${totalApiOwners}`;
             }
-            const tradeActive = currentActiveTab === trade.name ? 'active' : '';
-            chipsHtml += `<div class="trade-filter-chip ${tradeActive}" data-trade-id="${trade.id}" data-trade-name="${trade.name}">\n                ${trade.name} <span class="trade-count-badge">${statusText}</span>\n            </div>`;
+            const tradeName =
+                trade.name && trade.name !== 'undefined' ? trade.name : '(unnamed)';
+            const tradeActive = currentActiveTab === tradeName ? 'active' : '';
+            chipsHtml += `<div class="trade-filter-chip ${tradeActive}" data-trade-id="${trade.id}" data-trade-name="${tradeName}">\n                ${tradeName} <span class="trade-count-badge">${statusText}</span>\n            </div>`;
         });
         filterChips.innerHTML = chipsHtml;
     }
